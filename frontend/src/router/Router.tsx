@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
 import SignUp from '@/pages/Signup';
+import Home from './Home';
 
 /**
  * Main application router component.
@@ -23,7 +24,7 @@ const Router = () => {
     }
   }, []);
 
-  const PublicLayout = ({ children, overlay = false }: { children: React.ReactNode, overlay?: boolean }) => {
+  const Layout = ({ children, overlay = false }: { children: React.ReactNode, overlay?: boolean }) => {
     return (
       <div className='flex flex-col h-screen'>
         {overlay ? (
@@ -41,10 +42,13 @@ const Router = () => {
     <BrowserRouter>
       <Routes>
         {/* Public routes */}
-        <Route path="/" element={<PublicLayout overlay={true}><Landing /></PublicLayout>} />
-        <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
-        <Route path="/signup" element={<PublicLayout><SignUp /></PublicLayout>} />
-        <Route path="/demo" element={<PublicLayout></PublicLayout>} />
+        <Route path="/" element={<Layout overlay={true}><Landing /></Layout>} />
+        <Route path="/login" element={<Layout><Login /></Layout>} />
+        <Route path="/signup" element={<Layout><SignUp /></Layout>} />
+        <Route path="/demo" element={<Layout></Layout>} />
+
+        {/* Private routes */}
+        <Route path="/home/*" element={<Layout><Home /></Layout>} />
       </Routes>
     </BrowserRouter>
   );

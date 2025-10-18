@@ -1,202 +1,321 @@
-import Navbar from "@/components/nav-bar";
+
+import { Bot, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { TextAnimate } from "@/components/ui/text-animate";
-import { IconBarbell } from "@tabler/icons-react";
-import { BotIcon } from "lucide-react";
+import { IconBarbell, IconMessageReport, IconTimeDuration15 } from "@tabler/icons-react";
 import { useNavigate } from "react-router-dom";
+import { Separator } from "@/components/ui/separator";
+import { AnimatedCircularProgressBar } from "@/components/ui/animated-circular-progress-bar";
+import NavBar from "@/components/nav-bar";
 
-const features = [
-  {
-    title: "AI Motion Tracking",
-    description: "Your camera becomes your trainer. Using MediaPipe, P.A.C.E analyzes body movement in real-time to detect your posture, form, and exercise performance.",
-    icon: <IconBarbell />
-  },
-  {
-    title: "Rep-by-Rep Feedback",
-    description: "Every repetition counts. P.A.C.E classifies each rep as Good or Bad, giving you immediate feedback so you can correct form instantly.",
-    icon: <IconBarbell />
-  },
-  {
-    title: "AI Coaching",
-    description: "Get personalized coaching tips based on your performance. P.A.C.E suggests adjustments to improve your form, speed, and overall workout effectiveness.",
-    icon: <BotIcon />
-  }
-]
-
-const members = [
-  {
-    name: "Malik Heron",
-    role: "Frontend Engineer & UX",
-    initial: "M"
-  },
-  {
-    name: "Sherissa Pinnock",
-    role: "AI Engineer",
-    initial: "S"
-  },
-  {
-    name: "Trishanna Ford",
-    role: "Backend Engineer",
-    initial: "T"
-  }
-]
 export default function Landing() {
   const navigate = useNavigate();
 
+  const features = [
+    {
+      title: "Rep-by-Rep Feedback",
+      desc: "AI evaluates each repetition as Good or Bad and gives instant corrective cues.",
+      icon: <IconMessageReport size={30} />,
+    },
+    {
+      title: "Tempo & Speed Tracking",
+      desc: "Detects if you're going too fast or too slow and helps you hit the optimal training rhythm.",
+      icon: <IconTimeDuration15 size={30} />,
+    },
+    {
+      title: "AI Coach",
+      desc: "Chat with your AI coach for real-time tips and personalized guidance.",
+      icon: <Bot size={30} />,
+    },
+  ];
+
+  const team = [
+    { name: "Malik Heron", role: "Frontend Developer & UX" },
+    { name: "Sherissa Pinnock", role: "AI Engineer" },
+    { name: "Trishanna Ford", role: "ML & Data" },
+  ];
+
+  // Scroll or navigate to section with offset for sticky navbar
+  const handleScrollTo = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      const yOffset = -75; // Offset for the navbar height in px (e.g., 64px)
+      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    }
+  };
+
   return (
     <>
-      <Navbar />
+      <NavBar />
 
-      <div className='flex flex-col px-8 md:px-4 py-8 w-full overflow-hidden'>
-        <main className="flex flex-col justify-center mx-auto w-full max-w-7xl gap-12">
-          {/* Hero Section */}
-          <div className="flex flex-col md:flex-row w-full gap-6">
-            <div className="flex flex-col max-w-lg gap-4">
-              <TextAnimate animation="blurInUp" by="word" delay={0.3} once className="text-3xl md:text-5xl font-bold tracking-tight">
-                Master Every Rep with AI Precision.
+      <div className="flex flex-col items-center overflow-hidden w-full min-h-screen">
+        <main className="max-w-6xl mx-auto px-6 py-12">
+          {/* Hero */}
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+            <div>
+              <TextAnimate
+                animation="blurInUp"
+                by="word"
+                delay={0.5}
+                once
+                className="text-4xl text-foreground md:text-5xl font-extrabold leading-tight"
+              >
+                Master every rep with AI precision.
               </TextAnimate>
-              <TextAnimate animation="blurInUp" by="word" delay={0.3} once className="text-foreground">
-                Meet P.A.C.E, your personal AI fitness coach that uses cutting-edge motion tracking to perfect your workouts — rep by rep, set by set.
-              </TextAnimate>
-              <div className="flex gap-4">
-                <Button size="lg" onClick={() => navigate('/signup')} className="cursor-pointer" data-aos='fade-right' data-aos-delay={400}>
-                  <IconBarbell />
-                  Start Training
+              <TextAnimate animation="fadeIn" by="line" delay={0.5} once className="mt-4 text-muted-foreground">P.A.C.E (Personal AI Coaching Expert) uses real-time motion tracking to correct form, measure tempo, and score reps so you train smarter and safer.</TextAnimate>
+
+              <div className="mt-6 flex gap-4">
+                <Button
+                  data-aos='fade-right'
+                  data-aos-once="true"
+                  data-aos-delay={500}
+                  variant='default'
+                  size='lg'
+                  className="cursor-pointer"
+                  onClick={() => navigate('/signup')}
+                >
+                  <IconBarbell /> Start Training
                 </Button>
-                <Button variant="secondary" size="lg" className="cursor-pointer" data-aos='fade-right' data-aos-delay={300}>How it works</Button>
+                <Button
+                  data-aos='fade-right'
+                  data-aos-once="true"
+                  data-aos-delay={400}
+                  variant='ghost'
+                  size='lg'
+                  className="cursor-pointer"
+                  onClick={() => handleScrollTo('product')}
+                >
+                  How it works
+                  <ChevronRight />
+                </Button>
               </div>
-              <div data-aos='flip-up' data-aos-delay={200} data-aos-once className="grid grid-cols-3 gap-4 mt-4">
-                <div className="bg-muted flex flex-col p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Form Accuracy</p>
-                  <p className="text-xl font-bold">92%</p>
+
+              <div data-aos="flip-up" data-aos-once="true" data-aos-delay={500} className="mt-8 grid grid-cols-3 gap-4">
+                <div className="p-4 bg-card rounded-lg shadow-sm">
+                  <div className="text-sm text-muted-foreground">Form Accuracy</div>
+                  <div className="text-xl font-semibold">92%</div>
                 </div>
-                <div className="bg-muted flex flex-col p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Avg. Rep Speed</p>
-                  <p className="text-xl font-bold">1.2s</p>
+                <div className="p-4 bg-card rounded-lg shadow-sm">
+                  <div className="text-sm text-muted-foreground">Good Reps</div>
+                  <div className="text-xl font-semibold">78 / 100</div>
                 </div>
-                <div className="bg-muted flex flex-col p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Tempo</p>
-                  <p className="text-xl font-bold text-green-500">Good</p>
+                <div className="p-4 bg-card rounded-lg shadow-sm">
+                  <div className="text-sm text-muted-foreground">Avg Rep Speed</div>
+                  <div className="text-xl font-semibold">1.8s</div>
                 </div>
               </div>
             </div>
-            <img src="/pose_tracking.svg" alt="Pose Tracking Illustration" className="md:ml-auto md:max-w-xl" />
-          </div>
 
-          {/* Features Section */}
-          <div id='features' className="flex flex-col gap-6">
-            <TextAnimate animation="blurInUp" by="character" once className="text-2xl font-bold tracking-tight">Features</TextAnimate>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {features.map((feature, index) => (
-                <div key={index} data-aos='fade-up' data-aos-delay={index * 100} className="bg-muted p-6 rounded-lg flex flex-col gap-4 cursor-pointer hover:scale-105 hover:active:scale-95 transition-transform duration-500">
-                  <div className="flex gap-4">
-                    <div className="text-4xl text-primary">{feature.icon}</div>
-                    <h3 className="text-lg font-semibold">{feature.title}</h3>
+            {/* Camera / Pose mockup */}
+            <div data-aos='zoom-in' data-aos-once="true" data-aos-delay={500} className="relative">
+              <img src="/pose_tracking.svg" alt="Pose Tracking" />
+            </div>
+          </section>
+
+          {/* Features */}
+          <section id="features" className="mt-20">
+            <TextAnimate
+              animation="blurInUp"
+              by="word"
+              delay={0.5}
+              once
+              className="text-2xl font-bold">
+              Features
+            </TextAnimate>
+            <TextAnimate animation="fadeIn" by="line" delay={0.5} once className="mt-2 text-muted-foreground max-w-2xl">Everything you need to bring an intelligent trainer into your home — without wearables.</TextAnimate>
+
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {features.map((f) => (
+                <div key={f.title} data-aos="zoom-in" data-aos-once="true" data-aos-delay={500}>
+                  <div className="cursor-pointer p-6 bg-card rounded-xl shadow-sm transition-transform duration-300 ease-in-out hover:scale-105 active:scale-95 hover:shadow-lg will-change-transform">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-muted rounded-md">{f.icon}</div>
+                      <div>
+                        <h3 className="font-semibold">{f.title}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">{f.desc}</p>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-md text-muted-foreground">{feature.description}</p>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
 
-          {/* How it works Section */}
-          <div id='product' className="flex flex-col gap-4">
-            <TextAnimate animation="blurInUp" by="character" once className="text-2xl font-bold tracking-tight">How P.A.C.E works</TextAnimate>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <ul className="list-none text-foreground max-w-lg flex flex-col gap-2 ml-4 leading-tight">
-                <li className="flex items-start"><span className="mr-2 mt-1 text-primary">•</span><span><b>Precision Feedback:</b> No more guessing — get real, measurable insights into your workout form.</span></li>
-                <li className="flex items-start"><span className="mr-2 mt-1 text-primary">•</span><span><b>Consistency Tracking:</b> See how your form improves from workout to workout.</span></li>
-                <li className="flex items-start"><span className="mr-2 mt-1 text-primary">•</span><span><b>Maximize Results:</b> Eliminate bad habits early and reach peak efficiency faster.</span></li>
-                <li className="flex items-start"><span className="mr-2 mt-1 text-primary">•</span><span><b>Hands-Free Coaching:</b> No wearables, no distractions — just your camera and your movement.</span></li>
-                <li className="flex items-start"><span className="mr-2 mt-1 text-primary">•</span><span><b>AI-Powered Accuracy:</b> Built using state-of-the-art MediaPipe motion tracking technology.</span></li>
-              </ul>
-              <div className="bg-muted flex flex-col gap-4 rounded-lg p-4">
-                <p className="text-green-500">Live session preview</p>
-                <div className="bg-card flex flex-col rounded-sm p-4">
-                  <p className="text-sm text-muted-foreground">Current exercise: Bicep Curls</p>
-                  <div className="grid grid-cols-2 gap-6 mt-4">
-                    <div className="bg-muted flex flex-col p-4 rounded-lg">
-                      <p className="text-sm text-muted-foreground">Reps completed</p>
-                      <p className="text-lg font-bold">5 / 10</p>
-                    </div>
-                    <div className="bg-muted flex flex-col p-4 rounded-lg">
-                      <p className="text-sm text-muted-foreground">Sets completed</p>
-                      <p className="text-lg font-bold">3 / 5</p>
-                    </div>
-                    <div className="bg-muted flex flex-col p-4 rounded-lg">
-                      <p className="text-sm text-muted-foreground">Duration</p>
-                      <p className="text-lg font-bold">00:25 mins</p>
-                    </div>
-                    <div className="bg-muted flex flex-col p-4 rounded-lg">
-                      <p className="text-sm text-muted-foreground">Rest timer</p>
-                      <p className="text-lg font-bold">15 secs</p>
-                    </div>
+          {/* Product Explanation */}
+          <section id="product" className="mt-20 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+            <div data-aos='fade-up' data-aos-once="true" data-aos-delay={300}>
+              <h2 className="text-2xl font-bold">How P.A.C.E helps you train</h2>
+              <p className="mt-3 text-muted-foreground">Using MediaPipe pose estimation as the core motion detector, P.A.C.E processes keypoints and joint angles to determine posture and tempo. Our inference engine scores each repetition, flags risky ranges of motion, and offers micro-corrections you can apply mid-set.</p>
+
+              <ul className="mt-6 space-y-3">
+                <li className="flex gap-3 items-start">
+                  <div className="mt-1">•</div>
+                  <div>
+                    <div className="font-semibold">Real-time correction</div>
+                    <div className="text-sm text-muted-foreground">Audio and visual cues help you adjust form immediately so mistakes aren't repeated.</div>
                   </div>
+                </li>
+                <li className="flex gap-3 items-start">
+                  <div className="mt-1">•</div>
+                  <div>
+                    <div className="font-semibold">Progress analytics</div>
+                    <div className="text-sm text-muted-foreground">Session summaries show trends in accuracy, tempo, and rep quality to guide program tweaks.</div>
+                  </div>
+                </li>
+              </ul>
+
+              <div className="mt-6 flex gap-3">
+                <Button
+                  data-aos='fade-right'
+                  data-aos-once="true"
+                  data-aos-delay={100}
+                  variant='default'
+                  className="cursor-pointer"
+                  onClick={() => navigate('/demo')}
+                >
+                  Try a Demo
+                </Button>
+                <Button data-aos='fade-right' data-aos-once="true" variant='outline' className="cursor-pointer">Read Docs</Button>
+              </div>
+            </div>
+
+            <div data-aos='fade-up' data-aos-once="true" data-aos-delay={300} className="bg-card p-4 rounded-xl shadow-sm">
+              <h4 className="font-semibold">Live session preview</h4>
+              <div className="mt-4 bg-muted rounded-lg p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Exercise</div>
+                    <div className="font-medium">Bicep Curls</div>
+                  </div>
+                  <AnimatedCircularProgressBar
+                    className="size-12 text-sm"
+                    value={80}
+                    gaugePrimaryColor="rgb(34 197 94)"
+                    gaugeSecondaryColor="rgba(0, 0, 0, 0.1)"
+                  />
+                </div>
+
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div className="p-2 bg-card rounded-md shadow-sm">
+                    <div className="text-xs text-muted-foreground">Reps Completed</div>
+                    <div className="font-semibold">8 / 10</div>
+                  </div>
+                  <div className="p-2 bg-card rounded-md shadow-sm">
+                    <div className="text-xs text-muted-foreground">Sets Completed</div>
+                    <div className="font-semibold">1 / 5</div>
+                  </div>
+                  <div className="p-2 bg-card rounded-md shadow-sm">
+                    <div className="text-xs text-muted-foreground">Duration</div>
+                    <div className="font-semibold">00:24 mins</div>
+                  </div>
+                  <div className="p-2 bg-card rounded-md shadow-sm">
+                    <div className="text-xs text-muted-foreground">Rest Timer</div>
+                    <div className="font-semibold">15 secs</div>
+                  </div>
+                </div>
+
+                <div className="mt-4 text-sm text-muted-foreground">Tip: Slow the descent 10% to increase tension and improve depth.</div>
+              </div>
+            </div>
+          </section>
+
+          {/* About & Team Combined Section */}
+          <section id='about' className="mt-20">
+            <div data-aos='fade-up' data-aos-once="true" data-aos-delay={300} className="md:flex md:items-center md:justify-between">
+              <div className="md:col-span-2">
+                <h2 className="text-2xl font-bold">About Us</h2>
+                <p className="mt-4 text-muted-foreground max-w-lg">P.A.C.E (Personal AI Coaching Expert) combines MediaPipe pose estimation with custom inference logic to deliver high-quality, real-time workout feedback. We focus on usability, privacy-first camera processing, and reproducible progress so you can improve safely.</p>
+                <div className="mt-8">
+                  <Button data-aos='fade-right' data-aos-once="true" data-aos-delay={300} variant='secondary' className="cursor-pointer" onClick={() => navigate('/login')}>Start your journey</Button>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* About Section */}
-          <div id='about' className="flex flex-col gap-4">
-            <div className="flex flex-col gap-4">
-              <TextAnimate animation="blurInUp" by="character" once className="text-2xl font-bold tracking-tight">About P.A.C.E</TextAnimate>
-              <p className="text-foreground max-w-xl">
-                Personal AI Coaching Expert (P.A.C.E) is redefining home fitness through computer vision and machine learning.
-                By leveraging MediaPipe’s real-time pose estimation, P.A.C.E turns any camera into an intelligent trainer that evaluates your movements with precision — helping you train smarter, safer, and more efficiently.
-                Whether you’re a beginner looking to perfect your form or an athlete chasing micro-improvements, P.A.C.E keeps you in sync with your body’s best potential.
-              </p>
-            </div>
+            {/* Team */}
+            <div className="mt-20">
+              <TextAnimate
+                animation="blurInUp"
+                by="word"
+                delay={0.5}
+                once
+                className="text-2xl font-bold text-center"
+              >
+                Meet the Team
+              </TextAnimate>
+              <TextAnimate
+                animation="fadeIn"
+                by="line"
+                delay={0.5}
+                once
+                className="mt-2 text-muted-foreground text-center"
+              >
+                Engineers and designers building the future of at-home coaching.
+              </TextAnimate>
 
-            {/* Meet the Team Section */}
-            <div className="flex flex-col gap-4 mt-10 justify-center items-center w-full">
-              <TextAnimate animation="blurInUp" by="character" once className="text-center text-2xl font-bold tracking-tight">Meet the Team</TextAnimate>
-              <p className="text-foreground max-w-xl text-center">
-                Our team is composed of experts in AI, fitness, and wellness, all dedicated to helping you achieve your goals.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full mt-4">
-                {members.map((member) => (
-                  <div key={member.name} className='bg-muted rounded-lg p-6 flex flex-col items-center'>
-                    <div className="w-16 h-16 rounded-full bg-card flex items-center justify-center mb-4 text-2xl font-bold">
-                      {member.initial}
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-6 justify-items-center">
+                {team.map((m, i) => (
+                  <div
+                    key={m.name}
+                    data-aos="fade-up"
+                    data-aos-once="true"
+                    data-aos-delay={300 + i * 100}
+                    className="p-6 bg-card rounded-xl text-center shadow-sm w-full max-w-xs"
+                  >
+                    <div className="mx-auto w-24 h-24 rounded-full bg-gradient-to-br from-indigo-600 to-pink-500 flex items-center justify-center text-white font-bold text-xl">
+                      {m.name.split(" ")[0].slice(0, 1)}
                     </div>
-                    <p className="text-lg font-semibold">{member.name}</p>
-                    <p className="text-sm text-muted-foreground">{member.role}</p>
+                    <div className="mt-4 font-semibold">{m.name}</div>
+                    <div className="text-sm text-muted-foreground">{m.role}</div>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Contact us Section */}
-          <div className="flex flex-col gap-4 mt-10 justify-center items-center w-full">
-            <TextAnimate animation="blurInUp" by="character" once className="text-center text-2xl font-bold tracking-tight">Get in Touch</TextAnimate>
-            <p className="text-foreground max-w-xl text-center">
-              Have questions or want to learn more? Reach out to our team — we're here to help you take your fitness journey to the next level with P.A.C.E.
-            </p>
-            <Button
-              size="lg"
-              onClick={() => window.open("mailto:example@gmail.com")}
-              className="cursor-pointer"
-              data-aos='fade-up'
-              data-aos-delay={400}
+          {/* Contact Section */}
+          <section id="contact" className="mt-32 max-w-4xl mx-auto text-center px-6">
+            <TextAnimate
+              animation="blurInUp"
+              by="word"
+              delay={0.5}
+              once
+              className="text-2xl font-bold"
             >
-              Contact Us
-            </Button>
-          </div>
+              Get in Touch
+            </TextAnimate>
+            <TextAnimate
+              animation="fadeIn"
+              by="line"
+              delay={0.5}
+              once
+              className="mt-2 text-muted-foreground"
+            >
+              Have questions or feedback? We'd love to hear from you.
+            </TextAnimate>
 
-
+            <div className="mt-6 flex flex-col sm:flex-row justify-center gap-4">
+              <Button
+                variant="outline"
+                size="lg"
+                className="cursor-pointer"
+                onClick={() => (window.location.href = "mailto:example@gmail.com")}
+              >
+                Email Us
+              </Button>
+            </div>
+          </section>
         </main>
-
-        <Separator className="mt-12" />
-        {/* Footer Section */}
-        <footer className="w-full p-6 flex flex-col items-center">
-          <p className="text-muted-foreground text-sm text-center">
-            &copy; {new Date().getFullYear()} P.A.C.E. All rights reserved.
-          </p>
-        </footer>
       </div>
+
+      <Separator className="max-w-full" />
+      {/* Footer */}
+      <footer className="py-6 md:py-8 px-2 sm:px-4 w-full">
+        <div className="w-full max-w-5xl mx-auto flex flex-col items-center justify-between gap-4 text-center text-sm text-muted-foreground md:flex-row">
+          <div>© {new Date().getFullYear()} P.A.C.E</div>
+          <a href="mailto:example@gmail.com" className="hover:text-foreground">Contact Support</a>
+        </div>
+      </footer>
     </>
-  )
-}
+  );
+};
