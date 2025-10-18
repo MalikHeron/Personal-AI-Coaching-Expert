@@ -1,0 +1,45 @@
+<svg viewBox="0 0 800 550" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="mpipe-bg" cx="50%" cy="50%" r="80%">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#000" stop-opacity="0.10" />
+    </radialGradient>
+    <linearGradient id="mpipe-limb" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#818cf8" />
+      <stop offset="100%" stop-color="#f472b6" />
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="800" height="550" rx="18" fill="url(#mpipe-bg)" />
+  <g stroke="url(#mpipe-limb)" stroke-width="8" stroke-linecap="round">
+    <line x1="400" y1="120" x2="400" y2="220" />
+    <line x1="400" y1="220" x2="350" y2="320" />
+    <line x1="400" y1="220" x2="450" y2="320" />
+    <line x1="350" y1="320" x2="340" y2="400" />
+    <line x1="450" y1="320" x2="460" y2="400" />
+    <line x1="400" y1="150" x2="340" y2="180" />
+    <line x1="400" y1="150" x2="460" y2="180" />
+    <line x1="340" y1="180" x2="320" y2="240" />
+    <line x1="460" y1="180" x2="480" y2="240" />
+  </g>
+  <g>
+    <circle cx="400" cy="100" r="22" fill="#fff" stroke="#818cf8" stroke-width="6" />
+    <circle cx="400" cy="120" r="10" fill="#818cf8" />
+    <circle cx="400" cy="150" r="10" fill="#818cf8" />
+    <circle cx="340" cy="180" r="10" fill="#818cf8" />
+    <circle cx="460" cy="180" r="10" fill="#818cf8" />
+    <circle cx="320" cy="240" r="10" fill="#f472b6" />
+    <circle cx="480" cy="240" r="10" fill="#f472b6" />
+    <circle cx="400" cy="220" r="12" fill="#818cf8" />
+    <circle cx="350" cy="320" r="12" fill="#f472b6" />
+    <circle cx="450" cy="320" r="12" fill="#f472b6" />
+    <circle cx="340" cy="400" r="10" fill="#818cf8" />
+    <circle cx="460" cy="400" r="10" fill="#818cf8" />
+  </g>
+  <circle cx="350" cy="320" r="22" fill="none" stroke="#f472b6" stroke-width="3" opacity="0.18">
+    <animate attributeName="r" values="22;32;22" dur="1.5s" repeatCount="indefinite" />
+    <animate attributeName="opacity" values="0.18;0.05;0.18" dur="1.5s" repeatCount="indefinite" />
+  </circle>
+  <text x="50%" y="480" text-anchor="middle" fill="#6b7280" font-size="16" font-family="Geist, sans-serif">
+    Real-time pose estimation • Rep analysis • AI feedback
+  </text>
+</svg>
