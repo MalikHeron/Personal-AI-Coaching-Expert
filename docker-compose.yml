@@ -92,23 +92,23 @@ services:
       - .env
     depends_on:
       - backend
-      - fastapi
+      # - fastapi
 
-  fastapi:
-    build:
-      context: ./fast_api
-      dockerfile: Dockerfile
-    image: demo-fastapi:local
-    hostname: fastapi
-    volumes:
-      - ./fast_api:/usr/src/app/fastapi
-    ports:
-      - 9000:9000
-    env_file:
-      - .env
-    depends_on:
-      - database
-      - redis
+  # fastapi:
+  #   build:
+  #     context: ./fast_api
+  #     dockerfile: Dockerfile
+  #   image: demo-fastapi:local
+  #   hostname: fastapi
+  #   volumes:
+  #     - ./fast_api:/usr/src/app/fastapi
+  #   ports:
+  #     - 9000:9000
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - database
+  #     - redis
 
   nginx:
     restart: always
