@@ -30,12 +30,12 @@ export default function Landing() {
     <>
       <Navbar />
 
-      <div className='flex flex-col px-4 py-8 md:py-16 w-full overflow-hidden'>
+      <div className='flex flex-col px-8 md:px-4 py-8 md:py-16 w-full overflow-hidden'>
         <main className="flex flex-col justify-center mx-auto w-full max-w-7xl gap-12">
           {/* Hero Section */}
           <div className="flex flex-col md:flex-row w-full gap-6">
             <div className="flex flex-col max-w-lg gap-4">
-              <TextAnimate animation="blurInUp" by="word" delay={0.3} once className="text-5xl font-bold tracking-tight">
+              <TextAnimate animation="blurInUp" by="word" delay={0.3} once className="text-3xl md:text-5xl font-bold tracking-tight">
                 Master Every Rep with AI Precision.
               </TextAnimate>
               <TextAnimate animation="blurInUp" by="word" delay={0.3} once className="text-foreground">
@@ -49,17 +49,17 @@ export default function Landing() {
                 <Button variant="secondary" size="lg" className="cursor-pointer" data-aos='fade-right' data-aos-delay={300}>How it works</Button>
               </div>
               <div data-aos='flip-up' data-aos-delay={200} className="grid grid-cols-3 gap-4 mt-4">
-                <div className="bg-muted flex flex-col p-4 rounded-sm">
+                <div className="bg-muted flex flex-col p-4 rounded-lg">
                   <p className="text-sm text-muted-foreground">Form Accuracy</p>
                   <p className="text-xl font-bold">92%</p>
                 </div>
-                <div className="bg-muted flex flex-col p-4 rounded-sm">
+                <div className="bg-muted flex flex-col p-4 rounded-lg">
                   <p className="text-sm text-muted-foreground">Avg. Rep Speed</p>
                   <p className="text-xl font-bold">1.2s</p>
                 </div>
-                <div className="bg-muted flex flex-col p-4 rounded-sm">
+                <div className="bg-muted flex flex-col p-4 rounded-lg">
                   <p className="text-sm text-muted-foreground">Tempo</p>
-                  <p className="text-xl font-bold text-green-300">Good</p>
+                  <p className="text-xl font-bold text-green-500">Good</p>
                 </div>
               </div>
             </div>
@@ -86,17 +86,35 @@ export default function Landing() {
           <div className="flex flex-col gap-4">
             <TextAnimate animation="blurInUp" by="character" once className="text-2xl font-bold tracking-tight">How P.A.C.E works</TextAnimate>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <ul className="list-disc list-inside text-muted-foreground max-w-lg flex flex-col gap-2 ml-4">
-                <li><b>Precision Feedback:</b> No more guessing — get real, measurable insights into your workout form.</li>
-                <li><b>Consistency Tracking:</b> See how your form improves from workout to workout.</li>
-                <li><b>Maximize Results:</b> Eliminate bad habits early and reach peak efficiency faster.</li>
-                <li><b>Hands-Free Coaching:</b> No wearables, no distractions — just your camera and your movement.</li>
-                <li><b>AI-Powered Accuracy:</b> Built using state-of-the-art MediaPipe motion tracking technology.</li>
+              <ul className="list-none text-muted-foreground max-w-lg flex flex-col gap-2 ml-4">
+                <li className="flex items-start"><span className="mr-2 mt-1 text-primary">•</span><span><b>Precision Feedback:</b> No more guessing — get real, measurable insights into your workout form.</span></li>
+                <li className="flex items-start"><span className="mr-2 mt-1 text-primary">•</span><span><b>Consistency Tracking:</b> See how your form improves from workout to workout.</span></li>
+                <li className="flex items-start"><span className="mr-2 mt-1 text-primary">•</span><span><b>Maximize Results:</b> Eliminate bad habits early and reach peak efficiency faster.</span></li>
+                <li className="flex items-start"><span className="mr-2 mt-1 text-primary">•</span><span><b>Hands-Free Coaching:</b> No wearables, no distractions — just your camera and your movement.</span></li>
+                <li className="flex items-start"><span className="mr-2 mt-1 text-primary">•</span><span><b>AI-Powered Accuracy:</b> Built using state-of-the-art MediaPipe motion tracking technology.</span></li>
               </ul>
-              <div className="bg-muted flex flex-col gap-4 rounded-sm p-4">
+              <div className="bg-muted flex flex-col gap-4 rounded-lg p-4">
                 <p className="">Live session preview</p>
-                <div className="bg-card flex rounded-sm">
-                  
+                <div className="bg-card flex flex-col rounded-sm p-4">
+                  <p className="text-sm text-muted-foreground">Current exercise: Bicep Curls</p>
+                  <div className="grid grid-cols-2 gap-6 mt-4">
+                    <div className="bg-muted flex flex-col p-4 rounded-lg">
+                      <p className="text-sm text-muted-foreground">Reps completed</p>
+                      <p className="text-lg font-bold">5 / 10</p>
+                    </div>
+                    <div className="bg-muted flex flex-col p-4 rounded-lg">
+                      <p className="text-sm text-muted-foreground">Sets completed</p>
+                      <p className="text-lg font-bold">3 / 5</p>
+                    </div>
+                    <div className="bg-muted flex flex-col p-4 rounded-lg">
+                      <p className="text-sm text-muted-foreground">Duration</p>
+                      <p className="text-lg font-bold">00:25 mins</p>
+                    </div>
+                    <div className="bg-muted flex flex-col p-4 rounded-lg">
+                      <p className="text-sm text-muted-foreground">Rest timer</p>
+                      <p className="text-lg font-bold">15 secs</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
