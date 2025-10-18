@@ -162,14 +162,22 @@ export function useSquatTracker(
   /**
    * Process pose results from MediaPipe
    */
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+
   const onPoseResults = useCallback(
     (results: any) => {
       if (!canvasRef.current) return;
       const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d', {
-        alpha: false,
-        desynchronized: true
-      });
+
+      // Reuse context instead of creating new one each frame
+      if (!ctxRef.current) {
+        ctxRef.current = canvas.getContext('2d', {
+          alpha: false,
+          desynchronized: true,
+          willReadFrequently: false
+        });
+      }
+      const ctx = ctxRef.current;
       if (!ctx) return;
 
       // Setup and clear canvas

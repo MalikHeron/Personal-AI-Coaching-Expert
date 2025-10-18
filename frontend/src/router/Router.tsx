@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
 import SignUp from '@/pages/Signup';
-
+import Workout from '@/pages/Workout';
 /**
  * Main application router component.
  *
@@ -44,7 +44,7 @@ const Router = () => {
         <Route path="/" element={<PublicLayout overlay={true}><Landing /></PublicLayout>} />
         <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
         <Route path="/signup" element={<PublicLayout><SignUp /></PublicLayout>} />
-        <Route path="/demo" element={<PublicLayout></PublicLayout>} />
+        <Route path="/demo" element={<PublicLayout><Workout/></PublicLayout>} />
       </Routes>
     </BrowserRouter>
   );

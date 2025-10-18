@@ -31,7 +31,7 @@ export function useMediaPipe({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
     });
     pose.setOptions({
-      modelComplexity: 1,
+      modelComplexity: 0,
       smoothLandmarks: true,
       enableSegmentation: false,
       minDetectionConfidence: 0.5,
@@ -59,7 +59,7 @@ export function useMediaPipe({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
           });
           newPose.setOptions({
-            modelComplexity: 1,
+            modelComplexity: 0,
             smoothLandmarks: true,
             enableSegmentation: false,
             minDetectionConfidence: 0.5,
@@ -88,14 +88,19 @@ export function useMediaPipe({
   const startTracking = useCallback(async () => {
     if (!videoRef.current || !poseRef.current) return;
     try {
+      let frameCount = 0;
       const camera = new Camera(videoRef.current, {
         onFrame: async () => {
+          // Process every 2nd frame to reduce load (skip frames)
+          frameCount++;
+          if (frameCount % 2 !== 0) return;
+
           if (poseRef.current && videoRef.current) {
             await poseRef.current.send({ image: videoRef.current });
           }
         },
-        width: 1920,
-        height: 1080,
+        width: 640,
+        height: 480,
       });
       await camera.start();
       cameraRef.current = camera;
