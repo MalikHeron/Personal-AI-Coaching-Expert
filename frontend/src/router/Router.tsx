@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
 import SignUp from '@/pages/Signup';
+import Workout from '@/pages/Workout';
 import Home from './Home';
 
 /**
@@ -45,7 +46,7 @@ const Router = () => {
         <Route path="/" element={<Layout overlay={true}><Landing /></Layout>} />
         <Route path="/login" element={<Layout><Login /></Layout>} />
         <Route path="/signup" element={<Layout><SignUp /></Layout>} />
-        <Route path="/demo" element={<Layout></Layout>} />
+        <Route path="/demo" element={<Layout><Workout /></Layout>} />
 
         {/* Private routes */}
         <Route path="/home/*" element={<Layout><Home /></Layout>} />
