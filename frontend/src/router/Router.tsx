@@ -44,6 +44,7 @@ const Router = () => {
         <Route path="/" element={<PublicLayout overlay={true}><Landing /></PublicLayout>} />
         <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
         <Route path="/signup" element={<PublicLayout><SignUp /></PublicLayout>} />
+        <Route path="/demo" element={<PublicLayout></PublicLayout>} />
       </Routes>
     </BrowserRouter>
   );
