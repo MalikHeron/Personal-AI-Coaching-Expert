@@ -16,7 +16,7 @@ type Workout = {
   difficulty: "Easy" | "Intermediate" | "Hard";
 };
 
-export default function Workout({ workouts = [{ name: 'Bicep Curl', reps: 2, sets: 2, restTimer: 3, difficulty: "Easy"},
+export default function Workout({ workouts = [{ name: 'Bicep Curl', reps: 5, sets: 2, restTimer: 3, difficulty: "Easy"},
 { name: 'Squats', reps: 2, sets: 2, restTimer: 5, difficulty: "Easy" },
 ] }: { workouts: Workout[] }) {
   // State variables
