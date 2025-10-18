@@ -1,0 +1,128 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/usr/src/app/backend
+    hostname: backend
+    image: demo-backend:local
+    ports:
+      - 8000:8000
+    env_file:
+      - .env
+    environment:
+      - DJANGO_REDIS_URL=redis://redis:6379/1
+    depends_on:
+      - database
+      - redis
+
+  database:
+    image: postgres:17.4
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    restart: 'always'
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - 5433:5432
+
+  redis:
+    image: redis:7.2-alpine
+    ports:
+      - "6381:6379"
+    volumes:
+      - ./backend/redis:/data
+    # In local/dev, disable persistence to avoid MISCONF stop-writes errors
+    # (ephemeral broker/result cache is fine for development)
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--stop-writes-on-bgsave-error", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # celery_worker:
+  #   image: demo-celery_worker:local
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   command: celery -A backend worker -l info --concurrency=4
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - ./backend:/usr/src/app/backend
+  #   depends_on:
+  #     - database
+  #     - redis
+  #     - backend
+
+  # celery_beat:
+  #   image: demo-celery_beat:local
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   command: celery -A backend beat -l info
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - ./backend/logs:/usr/src/app/backend/logs
+  #   depends_on:
+  #     - database
+  #     - redis
+  #     - backend
+  #     - celery_worker
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    hostname: frontend
+    image: demo-frontend:local
+    volumes:
+      - ./frontend:/usr/src/app/frontend # Mount local files for hot reload
+      - /usr/src/app/frontend/node_modules # Prevents overwriting node_modules, uncomment if using dev mode
+    ports:
+      - 5173:5173
+    env_file:
+      - .env
+    depends_on:
+      - backend
+      - fastapi
+
+  fastapi:
+    build:
+      context: ./fast_api
+      dockerfile: Dockerfile
+    image: demo-fastapi:local
+    hostname: fastapi
+    volumes:
+      - ./fast_api:/usr/src/app/fastapi
+    ports:
+      - 9000:9000
+    env_file:
+      - .env
+    depends_on:
+      - database
+      - redis
+
+  nginx:
+    restart: always
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    image: demo-nginx:local
+    volumes:
+      - ./backend/static_root:/usr/src/app/backend/static
+      - ./backend/media:/usr/src/app/backend/media
+    ports:
+      - 80:80
+    depends_on:
+      - frontend
+
+volumes:
+  postgres_data:
