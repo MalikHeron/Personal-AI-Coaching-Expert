@@ -1,6 +1,8 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { useEffect } from 'react';
 import Landing from '@/pages/Landing';
+import Login from '@/pages/Login';
+import SignUp from '@/pages/Signup';
 
 /**
  * Main application router component.
@@ -11,8 +13,7 @@ import Landing from '@/pages/Landing';
  * - Wraps private routes with `UserProvider` for user context.
  *
  * @returns {JSX.Element} The router configuration for the application.
- */
-
+*/
 const Router = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -41,6 +42,8 @@ const Router = () => {
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<PublicLayout overlay={true}><Landing /></PublicLayout>} />
+        <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
+        <Route path="/signup" element={<PublicLayout><SignUp /></PublicLayout>} />
       </Routes>
     </BrowserRouter>
   );
