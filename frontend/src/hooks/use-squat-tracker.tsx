@@ -48,7 +48,7 @@ export function useSquatTracker(
       const ankleIndex = leg === 'right' ? 28 : 27;
 
       // Check visibility
-      if (!checkLandmarkVisibility(landmarks, [hipIndex, kneeIndex, ankleIndex])) {
+      if (!checkLandmarkVisibility(landmarks, [hipIndex, kneeIndex])) {
         feedbackManager.setFeedback('Ensure your full body is visible to the camera.');
         return;
       }
@@ -112,7 +112,7 @@ export function useSquatTracker(
           // More lenient: count rep if depth is good OR duration is good
           const isGoodRep = (repDuration >= 1.0 && wasDeepEnough) || (repDuration >= 1.5 && depthAchieved !== null && depthAchieved < 120);
 
-          if (repDuration < 1.0) {
+          if (repDuration < 2) {
             newFeedback += 'Slow down! ';
           } else if (!wasDeepEnough && depthAchieved !== null && depthAchieved >= 120) {
             newFeedback += 'Go deeper! ';
