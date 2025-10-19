@@ -19,34 +19,6 @@ interface MultiSelectDropdownProps {
   disabled?: boolean;
 }
 
-/**
- * MultiSelectDropdown is a customizable multi-select dropdown component with optional search functionality.
- *
- * @param options - The list of selectable options, each with a `label` and `value`.
- * @param selected - The array of currently selected option values.
- * @param onChange - Callback invoked when the selection changes, receiving the new array of selected values.
- * @param placeholder - Optional placeholder text displayed when no options are selected. Defaults to "Select...".
- * @param showSearch - Whether to display a search input for filtering options. Defaults to `true`.
- * @param disabled - Whether the dropdown is disabled and non-interactive. Defaults to `false`.
- *
- * @remarks
- * - Supports a special "all" option: selecting "all" deselects other options, and selecting all individual options will automatically select "all".
- * - The dropdown remains open when selecting/deselecting options.
- * - The search input filters options by their label (case-insensitive).
- *
- * @example
- * ```tsx
- * <MultiSelectDropdown
- *   options={[
- *     { label: "All", value: "all" },
- *     { label: "Option 1", value: "1" },
- *     { label: "Option 2", value: "2" }
- *   ]}
- *   selected={selectedValues}
- *   onChange={setSelectedValues}
- * />
- * ```
- */
 export function MultiSelectDropdown({
   options,
   selected,
@@ -102,7 +74,7 @@ export function MultiSelectDropdown({
         <Button
           variant="outline"
           className={cn(
-            "px-3 justify-between text-muted-foreground hover:text-muted-foreground hover:bg-transparent w-full font-normal text-sm h-8 flex items-center pointer-events-auto",
+            "px-3 justify-between text-muted-foreground bg-transparent hover:text-muted-foreground w-full font-normal text-sm h-8 flex items-center pointer-events-auto",
             disabled && "opacity-70 cursor-not-allowed"
           )}
           disabled={disabled}
@@ -118,11 +90,6 @@ export function MultiSelectDropdown({
       <DropdownMenuContent
         align="start"
         className="max-h-60 w-[--radix-dropdown-menu-trigger-width] overflow-y-auto"
-        portalled={false}
-        onPointerDownOutside={(e) => {
-          // Keep dropdown interactions from bubbling up as outside clicks for the dialog
-          e.preventDefault();
-        }}
       >
         {showSearch && (
           <SearchBar

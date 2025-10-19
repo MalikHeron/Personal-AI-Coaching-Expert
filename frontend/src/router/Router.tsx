@@ -63,7 +63,7 @@ const Router = () => {
           <Route path="/signup" element={<Layout><SignUp /></Layout>} />
           <Route path="/oauth/callback" element={<Layout><OAuthCallback /></Layout>} />
           <Route path="/demo" element={<Layout><Workout workouts={[]} /></Layout>} />
-          <Route path="/onboarding" element={<Layout requiresUser={false}><Onboarding /></Layout>} />
+          <Route path="/onboarding" element={<Layout requiresUser={true}><Onboarding /></Layout>} />
 
           {/* Private routes */}
           <Route path="/home/*" element={<Layout><Home /></Layout>} />

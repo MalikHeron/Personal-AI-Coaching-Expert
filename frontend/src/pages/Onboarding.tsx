@@ -1,16 +1,14 @@
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-// import { Checkbox } from "@/components/ui/checkbox"
 import {
   Field,
   FieldGroup,
   FieldLabel,
-  // FieldSeparator,
   FieldSet,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { MultiSelectDropdown } from "@/components/ui/multi-select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Select,
@@ -22,19 +20,22 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 
 import { ChevronDownIcon } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
 
 export function Onboarding() {
-  const [open, setOpen] = useState(false)
-  const [date, setDate] = useState<Date | undefined>(undefined)
-  const [gender, setGender] = useState("")
-  const [pronouns, setPronouns] = useState("")
-  const [height, setHeight] = useState("")
-  const [weight, setWeight] = useState("")
-  const [fitnessLevel, setFitnessLevel] = useState("")
-  const [fitnessGoal, setFitnessGoal] = useState("")
-  const [personalGoals, setPersonalGoals] = useState<string[]>([])
-  const [otherGoal, setOtherGoal] = useState("")
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [gender, setGender] = useState("");
+  const [pronouns, setPronouns] = useState("");
+  const [height, setHeight] = useState("");
+  const [weight, setWeight] = useState("");
+  const [fitnessLevel, setFitnessLevel] = useState("");
+  const [fitnessGoal, setFitnessGoal] = useState("");
+  const [personalGoals, setPersonalGoals] = useState<string[]>([]);
+  const [otherGoal, setOtherGoal] = useState("");
+  const [isFormValid, setIsFormValid] = useState(false);
+  const navigate = useNavigate();
 
   const personalGoalsOptions = [
     { value: "lose_weight", label: "Lose Weight" },
@@ -47,8 +48,13 @@ export function Onboarding() {
     { value: "other", label: "Other" }
   ]
 
+  useEffect(() => {
+    // Basic validation: check required fields
+    const isValid = gender && pronouns && date && height && weight && fitnessLevel && fitnessGoal && personalGoals.length > 0;
+    setIsFormValid(!!isValid);
+  }, [gender, pronouns, date, height, weight, fitnessLevel, fitnessGoal, personalGoals]);
+
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
     const data = {
       gender,
       pronouns,
@@ -111,32 +117,30 @@ export function Onboarding() {
                         </Field>
                       </div>
                       <Field>
-                        <div className="flex flex-col gap-3">
-                          <FieldLabel htmlFor="onboarding-birthday">Date of birth</FieldLabel>
-                          <Popover open={open} onOpenChange={setOpen}>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                id="date"
-                                className="w-48 justify-between font-normal"
-                              >
-                                {date ? date.toLocaleDateString() : "Select date"}
-                                <ChevronDownIcon />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto overflow-hidden p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={date}
-                                captionLayout="dropdown"
-                                onSelect={(date) => {
-                                  setDate(date)
-                                  setOpen(false)
-                                }}
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
+                        <FieldLabel htmlFor="onboarding-birthday">Date of birth</FieldLabel>
+                        <Popover open={open} onOpenChange={setOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              id="date"
+                              className={`justify-between font-normal bg-card hover:bg-transparent w-full ${date ? "" : "text-muted-foreground hover:text-muted-foreground"}`}
+                            >
+                              {date ? date.toLocaleDateString() : "Select date"}
+                              <ChevronDownIcon />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={date}
+                              captionLayout="dropdown"
+                              onSelect={(date) => {
+                                setDate(date)
+                                setOpen(false)
+                              }}
+                            />
+                          </PopoverContent>
+                        </Popover>
                       </Field>
                       <div className="grid grid-cols-2 gap-4">
                         <Field>
@@ -180,38 +184,20 @@ export function Onboarding() {
                       </div>
                       <Field>
                         <FieldLabel>Personal Goals</FieldLabel>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="w-full flex justify-between bg-card">
-                              Select Goals
-                              <ChevronDownIcon className="ml-2 h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="w-56">
-                            {personalGoalsOptions.slice(0, 4).map((goal) => (
-                              <DropdownMenuCheckboxItem
-                                key={goal.value}
-                                checked={personalGoals.includes(goal.value)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setPersonalGoals([...personalGoals, goal.value]);
-                                  } else {
-                                    setPersonalGoals(personalGoals.filter((g) => g !== goal.value));
-                                  }
-                                }}
-                              >
-                                {goal.label}
-                              </DropdownMenuCheckboxItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <MultiSelectDropdown
+                          options={personalGoalsOptions}
+                          selected={personalGoals}
+                          onChange={setPersonalGoals}
+                          placeholder="Select personal goals"
+                          showSearch={false}
+                        />
                         <Textarea id="onboarding-goals-other" placeholder="If other, please specify" className="resize-none mt-2" value={otherGoal} onChange={e => setOtherGoal(e.target.value)} />
                       </Field>
                     </FieldGroup>
                   </FieldSet>
-                  <Field orientation="horizontal">
-                    <Button type="submit">Submit</Button>
-                    <Button variant="outline" type="button">
+                  <Field orientation="horizontal" className="w-full justify-end">
+                    <Button type="submit" disabled={!isFormValid}>Submit</Button>
+                    <Button variant="outline" type="button" onClick={() => navigate('/')}>
                       Cancel
                     </Button>
                   </Field>

@@ -124,7 +124,7 @@ const Home = () => {
                   {/* Redirect /home to /home/dashboard */}
                   <Route path="" element={<Navigate to="/home/dashboard" replace />} />
                   {routeConfig.map(({ path, element }) => (
-                    !user && (
+                    user && (
                       <Route
                         key={path}
                         path={path}

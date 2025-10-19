@@ -51,7 +51,7 @@ export function NavUser() {
                 <AvatarFallback>{getInitials(user ?? {} as User)}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{user?.username ?? "John Doe"}</span>
+                <span className="truncate font-semibold">{`${user?.first_name && user?.last_name ? user.first_name + " " + user?.last_name : "John Doe"}`}</span>
                 <span className="truncate text-xs">{user ? user?.email : "johndoe@example.com"}</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
@@ -70,7 +70,7 @@ export function NavUser() {
                   <AvatarFallback>{getInitials(user ?? {} as User)}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">{user?.username ?? "John Doe"}</span>
+                  <span className="truncate font-semibold">{`${user?.first_name && user?.last_name ? user.first_name + " " + user?.last_name : "John Doe"}`}</span>
                   <span className="truncate text-xs">{user ? user?.email : "johndoe@example.com"}</span>
                 </div>
               </div>
