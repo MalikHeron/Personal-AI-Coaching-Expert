@@ -5,6 +5,11 @@ on:
     branches:
       - develop
   workflow_dispatch:
+    inputs:
+      app_name:
+        description: "Azure Web App name (fallback if repo variable WEBAPP_NAME is not set)"
+        required: false
+        type: string
 
 # Set these as GitHub Repository Variables or override here
 env:
@@ -25,8 +30,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Prefer OIDC login when configured
-      # Using Publish Profile for deployment (no Azure login step required)
+      # Resolve Web App name from repo variable or manual dispatch input
+      - name: Resolve Web App name
+        id: resolve-app-name
+        shell: bash
+        run: |
+          APP="${{ env.WEBAPP_NAME }}"
+          if [ -z "$APP" ]; then APP="${{ inputs.app_name }}"; fi
+          if [ -z "$APP" ]; then
+            echo "::error::Web App name is not set. Set repository variable 'WEBAPP_NAME' (Settings > Secrets and variables > Actions > Variables) or pass 'app_name' when manually dispatching the workflow."
+            exit 1
+          fi
+          echo "Resolved app name: $APP"
+          echo "app_name=$APP" >> "$GITHUB_OUTPUT"
 
       - name: Compute GHCR image name (lowercase owner)
         id: imagename
@@ -68,11 +84,11 @@ jobs:
             ${{ steps.imagename.outputs.image }}:${{ github.sha }}
             ${{ steps.imagename.outputs.image }}:latest
 
-      - name: Deploy to Azure Web App (container) via Publish Profile
+      - name: Deploy to Azure Web App (container) via OIDC
         id: deploy
         uses: azure/webapps-deploy@v2
         with:
-          app-name: ${{ env.WEBAPP_NAME }}
+          app-name: ${{ steps.resolve-app-name.outputs.app_name }}
           images: ${{ steps.imagename.outputs.image }}:${{ github.sha }}
 
   # Optional: Configure app settings (port, env) and GHCR credentials if image is private
@@ -109,4 +125,4 @@ jobs:
 
       - name: Output Web App URL
         run: |
-          echo "App URL: https://${WEBAPP_NAME}.azurewebsites.net"
+          echo "App URL: https://${{ steps.resolve-app-name.outputs.app_name }}.azurewebsites.net"
