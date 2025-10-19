@@ -1,12 +1,14 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Activity, TrendingUp } from "lucide-react";
+import { Activity, ChevronLeftIcon, TrendingUp } from "lucide-react";
 import { AnimatedCircularProgressBar } from "@/components/ui/animated-circular-progress-bar";
 import { IconPlayerPauseFilled, IconPlayerPlayFilled, IconPlayerStopFilled } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
+import useCamera from "@/hooks/use-camera";
 import { Spinner } from "@/components/ui/spinner";
 import useExerciseTracker from "@/hooks/use-exercise-tracker";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 type Workout = {
   name: string;
@@ -16,10 +18,9 @@ type Workout = {
   difficulty: "Easy" | "Intermediate" | "Hard";
 };
 
-export default function Workout({ workouts = [{ name: 'Bicep Curl', reps: 5, sets: 2, restTimer: 3, difficulty: "Easy"},
-{ name: 'Squats', reps: 2, sets: 2, restTimer: 5, difficulty: "Easy" },
-] }: { workouts: Workout[] }) {
+export default function Workout({ workouts = [] }: { workouts: Workout[] }) {
   // State variables
+  const navigate = useNavigate();
   const [tick, setTick] = useState(0);
   const [currentWorkoutIndex, setCurrentWorkoutIndex] = useState(0);
   const [currentRep, setCurrentRep] = useState(0);
@@ -59,10 +60,7 @@ export default function Workout({ workouts = [{ name: 'Bicep Curl', reps: 5, set
   };
 
   // Hooks
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
+  const { videoRef, isCameraOn: cameraActive, error: cameraError, isLoading } = useCamera();
   const {
     canvasRef,
     counter: trackedReps,
@@ -222,7 +220,6 @@ export default function Workout({ workouts = [{ name: 'Bicep Curl', reps: 5, set
     }
   }
 
-
   const finishWorkout = useCallback(() => {
     setIsWorkoutActive(false);
     stopTracking();
@@ -312,197 +309,202 @@ export default function Workout({ workouts = [{ name: 'Bicep Curl', reps: 5, set
   }, []);
 
   return (
-    <div className="block md:flex h-screen p-6 gap-6 space-y-4">
-      {/* Left: Workout Video */}
-      <div className="flex-1 flex h-[480px] md:h-[720px] items-center justify-center rounded-2xl overflow-hidden shadow-lg bg-black relative">
-        {/* Hidden video element - MediaPipe uses this */}
-        <video
-          ref={videoRef}
-          className="absolute opacity-0 pointer-events-none"
-          autoPlay
-          playsInline
-          muted
-        />
+    <div className="flex flex-1 flex-col gap-4 px-4 pt-4 overflow-y-auto">
+      <div className="flex items-center justify-between p-4">
+        <Button variant='outline' className="cursor-pointer" onClick={() => navigate('/')}>
+          <ChevronLeftIcon />
+          Back to Home
+        </Button>
 
-        {/* Canvas with pose detection overlay - VISIBLE */}
-        <canvas
-          ref={canvasRef}
-          className="h-[480px] md:h-[720px] w-full object-cover"
-        />
-
-        {/* Loading spinner */}
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-            <Spinner className="size-16" />
-          </div>
-        )}
-
-        {/* Error message */}
-        {cameraError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
-            <div className="text-red-500 text-sm bg-card rounded px-4 py-2 text-center">
-              {cameraError}
-            </div>
-          </div>
-        )}
+        <div className="flex gap-2">
+          {isWorkoutActive ? (
+            <Button variant='outline' className="cursor-pointer" onClick={() => setIsWorkoutActive(false)}>
+              <IconPlayerPauseFilled />
+              Pause
+            </Button>
+          ) : (
+            <Button variant='outline' className="cursor-pointer" onClick={() => setIsWorkoutActive(true)}>
+              <IconPlayerPlayFilled />
+              Start
+            </Button>
+          )}
+          <Button variant='outline' className="cursor-pointer" onClick={finishWorkout}>
+            <IconPlayerStopFilled className="text-red-500" />
+            End session
+          </Button>
+        </div>
       </div>
 
-      {/* Right: Stat Cards */}
-      <div className="md:w-1/3 flex flex-col gap-4 pb-3">
-        {/* Active Exercise Tracker Card */}
-        <Card className="shadow-md">
-          <CardContent className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs text-muted-foreground">Exercise</div>
-                <div className="font-medium">{currentWorkout.name}</div>
-              </div>
-              <AnimatedCircularProgressBar
-                className="size-12 text-sm"
-                value={repPercentage}
-                gaugePrimaryColor="rgb(34 197 94)"
-                gaugeSecondaryColor="rgba(0, 0, 0, 0.1)"
+      <div className="block md:flex h-screen gap-6 space-y-4">
+        {/* Left: Workout Video */}
+        <div className="flex-1 flex h-[480px] md:h-[720px] items-center justify-center rounded-2xl overflow-hidden shadow-lg">
+          {isLoading && !cameraActive && <Spinner className="size-8" />}
+          {cameraActive &&
+            <>
+              <video
+                ref={videoRef}
+                className="h-[480px] md:h-[720px] w-full object-cover"
+                autoPlay
+                playsInline
+                muted
+                style={{ display: 'none' }}
               />
-            </div>
 
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <div className="p-2 bg-muted rounded-md shadow-sm">
-                <div className="text-xs text-muted-foreground">Reps Completed</div>
-                <div className="font-semibold">{currentRep} / {currentWorkout.reps}</div>
-              </div>
-              <div className="p-2 bg-muted rounded-md shadow-sm">
-                <div className="text-xs text-muted-foreground">Current Set</div>
-                <div className="font-semibold">{currentSet} / {currentWorkout.sets}</div>
-              </div>
-              <div className="p-2 bg-muted rounded-md shadow-sm">
-                <div className="text-xs text-muted-foreground">Duration</div>
-                <div className="font-semibold">{setDuration} mins</div>
-              </div>
-              <div className="p-2 bg-muted rounded-md shadow-sm">
-                <div className="text-xs text-muted-foreground">Rest Timer</div>
-                <div className="font-semibold">{currentWorkout.restTimer} secs</div>
+              {/* Canvas with pose detection overlay - VISIBLE */}
+              <canvas
+                ref={canvasRef}
+                className="h-[480px] md:h-[720px] w-full object-cover"
+              />
+            </>
+          }
+          {cameraError && (
+            <div className="flex items-center justify-center w-full h-full z-10">
+              <div className="text-red-500 text-sm bg-card rounded px-4 py-2 text-center">
+                {cameraError}
               </div>
             </div>
+          )}
+        </div>
 
-            <div className="mt-4 text-sm text-muted-foreground">Tip: Slow the descent 10% to increase tension and improve depth.</div>
-          </CardContent>
-        </Card>
+        {/* Right: Stat Cards */}
+        <div className="md:w-1/3 flex flex-col gap-4 pb-3 overflow-y-auto">
+          {/* Active Exercise Tracker Card */}
+          <Card className="shadow-md">
+            <CardContent className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-muted-foreground">Exercise</div>
+                  <div className="font-medium">{currentWorkout.name}</div>
+                </div>
+                <AnimatedCircularProgressBar
+                  className="size-12 text-sm"
+                  value={repPercentage}
+                  gaugePrimaryColor="rgb(34 197 94)"
+                  gaugeSecondaryColor="rgba(0, 0, 0, 0.1)"
+                />
+              </div>
 
-        {/* Form Analysis Card */}
-        <Card className="shadow-md gap-1">
-          <CardHeader>
-            <CardTitle className="text-md font-semibold flex items-center gap-2">
-              <Activity className="w-5 h-5 text-blue-500" /> Form Analysis
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className='flex flex-col gap-2'>
-              <div className="flex justify-between text-sm">
-                <span>Form Score</span>
-                <span className="font-medium text-muted-foreground">{formScore}%</span>
-              </div>
-              <Progress value={formScore} className="h-2" />
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <div className="p-2 bg-muted rounded-md shadow-sm">
-                <div className="text-xs text-muted-foreground">Avg. Rep Speed</div>
-                <div className="font-semibold">{avgRepSpeed > 0 ? avgRepSpeed.toFixed(2) + 's' : '--'}</div>
-              </div>
-              <div className="p-2 bg-muted rounded-md shadow-sm">
-                <div className="text-xs text-muted-foreground">Tempo</div>
-                <div className={
-                  tempoLabel === 'Good' ? 'font-medium text-green-400' :
-                    tempoLabel === 'Slow' ? 'font-medium text-yellow-500' :
-                      tempoLabel === 'Fast' ? 'font-medium text-red-500' : 'font-medium text-muted-foreground'
-                }>
-                  {tempoLabel}
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="p-2 bg-muted rounded-md shadow-sm">
+                  <div className="text-xs text-muted-foreground">Reps Completed</div>
+                  <div className="font-semibold">{currentRep} / {currentWorkout.reps}</div>
+                </div>
+                <div className="p-2 bg-muted rounded-md shadow-sm">
+                  <div className="text-xs text-muted-foreground">Sets Completed</div>
+                  <div className="font-semibold">{currentSet - 1} / {currentWorkout.sets}</div>
+                </div>
+                <div className="p-2 bg-muted rounded-md shadow-sm">
+                  <div className="text-xs text-muted-foreground">Duration</div>
+                  <div className="font-semibold">{setDuration} mins</div>
+                </div>
+                <div className="p-2 bg-muted rounded-md shadow-sm">
+                  <div className="text-xs text-muted-foreground">Rest Timer</div>
+                  <div className="font-semibold">{currentWorkout.restTimer} secs</div>
                 </div>
               </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="text-sm">Feedback</div>
-              <div className="font-md min-h-14 text-muted-foreground">{feedback || 'No feedback available'}</div>
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Session Overview Card */}
-        <Card className="shadow-md gap-1">
-          <CardHeader>
-            <CardTitle className="text-md font-semibold flex items-center gap-2 justify-between">
-              <div className="flex gap-2 items-center">
-                <TrendingUp className="w-5 h-5 text-orange-500" />
-                Session Overview
-              </div>
-              <div className="flex gap-2">
-                {isWorkoutActive ? (
-                  <Button variant='ghost' className="cursor-pointer" onClick={() => setIsWorkoutActive(false)}>
-                    <IconPlayerPauseFilled />
-                    Pause
-                  </Button>
-                ) : (
-                  <Button variant='ghost' className="cursor-pointer" onClick={() => setIsWorkoutActive(true)}>
-                    <IconPlayerPlayFilled />
-                    Start
-                  </Button>
-                )}
-                <Button variant='ghost' className="cursor-pointer" onClick={finishWorkout}>
-                  <IconPlayerStopFilled className="text-red-500" />
-                  End session
-                </Button>
-              </div>
+              <div className="mt-4 text-sm text-muted-foreground">Tip: Slow the descent 10% to increase tension and improve depth.</div>
+            </CardContent>
+          </Card>
 
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between text-sm ">
-              <span>Workout Name</span>
-              <span className="font-medium text-muted-foreground">Upper Body Strength</span>
-            </div>
-            <div className="flex justify-between text-sm ">
-              <span>Total Exercises</span>
-              <span className="font-medium text-muted-foreground">{workouts.length}</span>
-            </div>
-            <div className="flex justify-between text-sm ">
-              <span>Elapsed Time</span>
-              <span className="font-medium text-muted-foreground">{elapsedTime} / 20:00</span>
-            </div>
-            <div className="flex justify-between text-sm ">
-              <span>Overall Accuracy</span>
-              <span className="font-medium text-muted-foreground">{overallAccuracy}%</span>
-            </div>
-            <div className="flex justify-between text-sm ">
-              <span>Difficulty</span>
-              <span className={`font-medium ${currentWorkout.difficulty === "Easy" ? "text-green-500" : currentWorkout.difficulty === "Intermediate" ? "text-orange-500" : "text-red-500"}`}>{currentWorkout.difficulty}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Between Set Timer Overlay */}
-        {isBetweenSets && (
-          <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-black/80 to-blue-900/80 z-50">
-            <Card className="animate-fade-in">
-              <CardHeader>
-                <CardTitle className="text-lg">Next set starts in</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col space-y-4 items-center">
-                <div className="relative flex items-center justify-center">
-                  <AnimatedCircularProgressBar
-                    className="size-24"
-                    value={((currentWorkout.restTimer || 30) - betweenSetTimer) / (currentWorkout.restTimer || 30) * 100}
-                    showValue={false}
-                    gaugePrimaryColor="rgb(59 130 246)"
-                    gaugeSecondaryColor="rgba(0, 0, 0, 0.1)"
-                  />
-                  <span className="absolute text-3xl font-bold">
-                    {betweenSetTimer}
-                  </span>
+          {/* Form Analysis Card */}
+          <Card className="shadow-md gap-1">
+            <CardHeader>
+              <CardTitle className="text-md font-semibold flex items-center gap-2">
+                <Activity className="w-5 h-5 text-blue-500" /> Form Analysis
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className='flex flex-col gap-2'>
+                <div className="flex justify-between text-sm">
+                  <span>Form Score</span>
+                  <span className="font-medium text-muted-foreground">{formScore}%</span>
                 </div>
-                <div className="text-muted-foreground dark:text-zinc-200 font-medium mt-2">Take a breather, hydrate, and get ready!</div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                <Progress value={formScore} className="h-2" />
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="p-2 bg-muted rounded-md shadow-sm">
+                  <div className="text-xs text-muted-foreground">Avg. Rep Speed</div>
+                  <div className="font-semibold">{avgRepSpeed > 0 ? avgRepSpeed.toFixed(2) + 's' : '--'}</div>
+                </div>
+                <div className="p-2 bg-muted rounded-md shadow-sm">
+                  <div className="text-xs text-muted-foreground">Tempo</div>
+                  <div className={
+                    tempoLabel === 'Good' ? 'font-medium text-green-400' :
+                      tempoLabel === 'Slow' ? 'font-medium text-yellow-500' :
+                        tempoLabel === 'Fast' ? 'font-medium text-red-500' : 'font-medium text-muted-foreground'
+                  }>
+                    {tempoLabel}
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="text-sm">Feedback</div>
+                <div className="font-md min-h-14 text-muted-foreground">{feedback || 'No feedback available'}</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Session Overview Card */}
+          <Card className="shadow-md gap-1">
+            <CardHeader>
+              <CardTitle className="text-md font-semibold flex items-center gap-2 justify-between">
+                <div className="flex gap-2 items-center">
+                  <TrendingUp className="w-5 h-5 text-orange-500" />
+                  Session Overview
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between text-sm ">
+                <span>Workout Name</span>
+                <span className="font-medium text-muted-foreground">Upper Body Strength</span>
+              </div>
+              <div className="flex justify-between text-sm ">
+                <span>Total Exercises</span>
+                <span className="font-medium text-muted-foreground">{workouts.length}</span>
+              </div>
+              <div className="flex justify-between text-sm ">
+                <span>Elapsed Time</span>
+                <span className="font-medium text-muted-foreground">{elapsedTime} / 20:00</span>
+              </div>
+              <div className="flex justify-between text-sm ">
+                <span>Overall Accuracy</span>
+                <span className="font-medium text-muted-foreground">{overallAccuracy}%</span>
+              </div>
+              <div className="flex justify-between text-sm ">
+                <span>Difficulty</span>
+                <span className={`font-medium ${currentWorkout.difficulty === "Easy" ? "text-green-500" : currentWorkout.difficulty === "Intermediate" ? "text-orange-500" : "text-red-500"}`}>{currentWorkout.difficulty}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Between Set Timer Overlay */}
+          {isBetweenSets && (
+            <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-black/80 to-blue-900/80 z-50">
+              <Card className="animate-fade-in">
+                <CardHeader>
+                  <CardTitle className="text-lg">Next set starts in</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col space-y-4 items-center">
+                  <div className="relative flex items-center justify-center">
+                    <AnimatedCircularProgressBar
+                      className="size-24"
+                      value={((currentWorkout.restTimer || 30) - betweenSetTimer) / (currentWorkout.restTimer || 30) * 100}
+                      showValue={false}
+                      gaugePrimaryColor="rgb(59 130 246)"
+                      gaugeSecondaryColor="rgba(0, 0, 0, 0.1)"
+                    />
+                    <span className="absolute text-3xl font-bold">
+                      {betweenSetTimer}
+                    </span>
+                  </div>
+                  <div className="text-muted-foreground dark:text-zinc-200 font-medium mt-2">Take a breather, hydrate, and get ready!</div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
