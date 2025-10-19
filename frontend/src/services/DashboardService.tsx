@@ -10,16 +10,11 @@ const API_URL = import.meta.env.DEV
 export interface WorkoutSession {
   id?: number;
   user_id?: number;
-  exercise_name: string;
-  start_time: string;
-  end_time?: string;
+  workout_name: string;
   total_duration: number; // in seconds
-  difficulty: "Easy" | "Intermediate" | "Hard";
-  sets_completed: number;
   total_reps: number;
-  good_reps: number;
-  overall_accuracy: number; // percentage
-  avg_rep_speed: number; // seconds per rep
+  form_score: number; // 0-100 percentage
+  date: string; // ISO timestamp
   created_at?: string;
 }
 
@@ -55,12 +50,9 @@ export interface WeeklyVolume {
 }
 
 export interface DashboardMetrics {
-  overall_accuracy: number;
-  total_reps: number;
-  avg_rep_speed: number;
-  good_reps_streak: number;
-  total_sessions: number;
-  total_workout_time: number; // in minutes
+  monthly_total_reps: number; // Total reps for the current month
+  total_time_trained: number; // Total time in minutes
+  average_form_accuracy: number; // Average form score across all workouts (0-100)
 }
 
 // ============================================

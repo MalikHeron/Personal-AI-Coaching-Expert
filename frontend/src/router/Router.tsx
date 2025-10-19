@@ -10,6 +10,7 @@ import PageNotFound from '@/components/page-not-found';
 import SignUp from '@/pages/Signup';
 import { Onboarding } from '@/pages/Onboarding';
 import { useUser } from '@/hooks/use-user';
+import Workouts from '@/pages/Workouts';
 
 /**
  * Main application router component.
@@ -68,6 +69,8 @@ const Router = () => {
           {/* Private routes */}
           <Route path="/home/*" element={<Layout><Home /></Layout>} />
           <Route path="*" element={<PageNotFound />} />
+          <Route path="/plan" element={<Layout><Workouts /></Layout>} />
+
         </Routes>
       </BrowserRouter>
     </UserProvider>

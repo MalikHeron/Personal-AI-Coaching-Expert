@@ -8,7 +8,8 @@ import useCamera from "@/hooks/use-camera";
 import { Spinner } from "@/components/ui/spinner";
 import useExerciseTracker from "@/hooks/use-exercise-tracker";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { DashboardService, WorkoutSession, RepLog } from '../services/DashboardService';
 
 type Workout = {
   name: string;
@@ -18,7 +19,13 @@ type Workout = {
   difficulty: "Easy" | "Intermediate" | "Hard";
 };
 
-export default function Workout({ workouts = [] }: { workouts: Workout[] }) {
+export default function Workout({ workouts: defaultWorkouts = [] }: { workouts?: Workout[] }) {
+  const location = useLocation();
+  const state = location.state as { workouts?: Workout[], workoutName?: string } | null;
+
+  // Use workouts from navigation state if available, otherwise use prop
+  const workouts = state?.workouts || defaultWorkouts;
+  const workoutName = state?.workoutName || "Upper Body Strength";
   // State variables
   const navigate = useNavigate();
   const [tick, setTick] = useState(0);
@@ -50,6 +57,10 @@ export default function Workout({ workouts = [] }: { workouts: Workout[] }) {
   const [betweenSetTimer, setBetweenSetTimer] = useState(0);
   const [isBetweenSets, setIsBetweenSets] = useState(false);
 
+  // API-related state
+  const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
+  const sessionStartTimeRef = useRef<string | null>(null);
+
   // Derived values
   const currentWorkout: Workout = workouts[currentWorkoutIndex] || {
     name: "Bicep Curl",
@@ -79,7 +90,6 @@ export default function Workout({ workouts = [] }: { workouts: Workout[] }) {
     handleRepComplete,
     "right"
   );
-
 
   const repPercentage = useMemo(() =>
     currentWorkout.reps > 0 ? Math.round((currentRep / currentWorkout.reps) * 100) : 0,
@@ -174,7 +184,7 @@ export default function Workout({ workouts = [] }: { workouts: Workout[] }) {
   }, [isBetweenSets]);
 
   // Handlers
-  function handleRepComplete(repCount: number, isGoodForm: boolean) {
+  async function handleRepComplete(repCount: number) {
     if (repCount === 0 && !started) {
       setStarted(true);
     }
@@ -220,15 +230,39 @@ export default function Workout({ workouts = [] }: { workouts: Workout[] }) {
     }
   }
 
-  const finishWorkout = useCallback(() => {
+  const finishWorkout = useCallback(async () => {
     setIsWorkoutActive(false);
     stopTracking();
     setSetStartTime(null);
-    alert("Workout session ended."); 
+
+    // Update the workout session in the database
+    if (currentSessionId && sessionStartTimeRef.current) {
+      try {
+        const endTime = new Date().toISOString();
+        const totalDurationSeconds = Math.floor((new Date(endTime).getTime() - new Date(sessionStartTimeRef.current).getTime()) / 1000);
+
+        await DashboardService.patchWorkoutSession(currentSessionId, {
+          total_duration: totalDurationSeconds,
+          total_reps: trackedReps,
+          form_score: formScore,
+          date: endTime
+        });
+        console.log("✓ Workout session updated in database");
+      } catch (error) {
+        console.error("Failed to update workout session:", error);
+      }
+    }
+
+    alert("Workout session ended.");
     setStarted(false);
     setSetDuration("--");
     setAccumulatedSetElapsed(0);
     markWorkoutEnd();
+
+    // Reset session state
+    setCurrentSessionId(null);
+    sessionStartTimeRef.current = null;
+
     setTimeout(() => {
       if (videoRef.current) videoRef.current.srcObject = null;
       if (canvasRef.current) {
@@ -236,7 +270,7 @@ export default function Workout({ workouts = [] }: { workouts: Workout[] }) {
         canvasRef.current.height = 0;
       }
     }, 1000);
-  }, [stopTracking, markWorkoutEnd, videoRef, canvasRef]);
+  }, [stopTracking, markWorkoutEnd, videoRef, canvasRef, currentSessionId, trackedReps, formScore]);
 
   const moveToNextWorkout = useCallback(() => {
     const nextIndex = currentWorkoutIndex + 1;
@@ -267,6 +301,33 @@ export default function Workout({ workouts = [] }: { workouts: Workout[] }) {
       setWorkoutDuration((prev) => prev === null ? Date.now() : prev);
     }
   }, [finishWorkout, isWorkoutActive, startTracking, started]);
+
+  // Create workout session when workout starts
+  useEffect(() => {
+    async function createSession() {
+      if (isWorkoutActive && !currentSessionId) {
+        try {
+          const startTime = new Date().toISOString();
+          sessionStartTimeRef.current = startTime;
+
+          const session = await DashboardService.createWorkoutSession({
+            workout_name: workoutName,
+            total_duration: 0,
+            total_reps: 0,
+            form_score: 0,
+            date: startTime
+          });
+
+          setCurrentSessionId(session.id!);
+          console.log("✓ Workout session created:", session.id);
+        } catch (error) {
+          console.error("Failed to create workout session:", error);
+        }
+      }
+    }
+
+    createSession();
+  }, [isWorkoutActive, currentSessionId, workoutName]);
 
   // Pause/resume elapsed time logic
   useEffect(() => {
@@ -391,7 +452,7 @@ export default function Workout({ workouts = [] }: { workouts: Workout[] }) {
                 </div>
                 <div className="p-2 bg-muted rounded-md shadow-sm">
                   <div className="text-xs text-muted-foreground">Sets Completed</div>
-                  <div className="font-semibold">{currentSet - 1} / {currentWorkout.sets}</div>
+                  <div className="font-semibold">{currentSet}/ {currentWorkout.sets}</div>
                 </div>
                 <div className="p-2 bg-muted rounded-md shadow-sm">
                   <div className="text-xs text-muted-foreground">Duration</div>
@@ -458,7 +519,7 @@ export default function Workout({ workouts = [] }: { workouts: Workout[] }) {
             <CardContent className="space-y-2">
               <div className="flex justify-between text-sm ">
                 <span>Workout Name</span>
-                <span className="font-medium text-muted-foreground">Upper Body Strength</span>
+                <span className="font-medium text-muted-foreground">{workoutName}</span>
               </div>
               <div className="flex justify-between text-sm ">
                 <span>Total Exercises</span>
