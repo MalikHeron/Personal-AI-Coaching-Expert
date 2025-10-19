@@ -86,25 +86,6 @@ class WorkoutSessionTests(BaseTestCase):
             log.full_clean()  # triggers validation
 
 
-# -------------------------
-# DailyStreak Tests
-# -------------------------
-class DailyStreakTests(BaseTestCase):
-    def test_streak_increment(self):
-        streak = DailyStreak.objects.get_or_create(user=self.user, streak_count=2, last_active=timezone.localdate() - timedelta(days=1))
-        streak.update_streak()
-        self.assertEqual(streak.streak_count, 3)
-
-    def test_streak_reset(self):
-        streak = DailyStreak.objects.create(user=self.user, streak_count=5, last_active=timezone.localdate() - timedelta(days=3))
-        streak.update_streak()
-        self.assertEqual(streak.streak_count, 1)
-
-    def test_streak_no_double_increment(self):
-        streak = DailyStreak.objects.create(user=self.user, streak_count=4, last_active=timezone.localdate())
-        streak.update_streak()
-        self.assertEqual(streak.streak_count, 4)
-
 
 # -------------------------
 # WorkoutSession API Tests
@@ -268,3 +249,95 @@ class ExerciseSetLogListCreateAPITests(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["reps_completed"], 10)
+
+
+
+
+class DailyStreakSignalTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="testuser", password="pass123")
+
+    def test_streak_created_on_completed_session(self):
+        # Create a completed workout session — should trigger streak creation
+        WorkoutSession.objects.create(user=self.user, completed=True)
+        
+        streak = DailyStreak.objects.get(user=self.user)
+        self.assertEqual(streak.streak_count, 1)
+        self.assertEqual(streak.last_active, timezone.localdate())
+
+    def test_streak_increments_on_consecutive_days(self):
+        # Day 1
+        WorkoutSession.objects.create(user=self.user, completed=True)
+        streak = DailyStreak.objects.get(user=self.user)
+        self.assertEqual(streak.streak_count, 1)
+
+        # Manually simulate next day
+        streak.last_active = timezone.localdate() - timedelta(days=1)
+        streak.save()
+
+        # Day 2 — should increment streak
+        WorkoutSession.objects.create(user=self.user, completed=True)
+        streak.refresh_from_db()
+        self.assertEqual(streak.streak_count, 2)
+
+    def test_streak_resets_if_day_skipped(self):
+        # Day 1
+        WorkoutSession.objects.create(user=self.user, completed=True)
+        streak = DailyStreak.objects.get(user=self.user)
+        self.assertEqual(streak.streak_count, 1)
+
+        # Simulate skipping a day (set last_active to 2 days ago)
+        streak.last_active = timezone.localdate() - timedelta(days=2)
+        streak.save()
+
+        # Day 3 (after skip) — should reset streak
+        WorkoutSession.objects.create(user=self.user, completed=True)
+        streak.refresh_from_db()
+        self.assertEqual(streak.streak_count, 1)
+
+
+
+class MarkSessionCompletedSignalTests(TestCase):
+    def setUp(self):
+        # User
+        self.user = User.objects.create_user(username="tester", password="pass123")
+
+        # Basic setup
+        style = TrainingStyle.objects.create(name="Strength")
+        group = MuscleGroup.objects.create(name="Chest")
+
+        # Exercises
+        self.exercise1 = Exercise.objects.create(name="Push Up", Training_style=style)
+        self.exercise1.muscle_group.add(group)
+        self.exercise2 = Exercise.objects.create(name="Bench Press", Training_style=style)
+        self.exercise2.muscle_group.add(group)
+
+        # Workout Plan with both exercises
+        self.plan = WorkoutPlan.objects.create(user=self.user, name="Upper Body", training_style=style)
+        WorkoutExercise.objects.create(workout_plan=self.plan, exercise=self.exercise1, order=1)
+        WorkoutExercise.objects.create(workout_plan=self.plan, exercise=self.exercise2, order=2)
+
+        # Session linked to the plan
+        self.session = WorkoutSession.objects.create(user=self.user, plan=self.plan)
+
+    def test_session_not_completed_until_all_exercises_logged(self):
+        """Should remain incomplete until all plan exercises are logged."""
+        # Log only one exercise
+        ExerciseSetLog.objects.create(session=self.session, exercise=self.exercise1, set_number=1, reps_completed=10)
+
+        self.session.refresh_from_db()
+        self.assertFalse(self.session.completed, "Session should not be completed yet")
+
+        # Log the second exercise
+        ExerciseSetLog.objects.create(session=self.session, exercise=self.exercise2, set_number=1, reps_completed=10)
+
+        self.session.refresh_from_db()
+        self.assertTrue(self.session.completed, "Session should now be marked as completed")
+
+    def test_signal_does_not_run_if_no_plan(self):
+        """Signal should safely skip sessions without a plan."""
+        no_plan_session = WorkoutSession.objects.create(user=self.user, plan=None)
+        ExerciseSetLog.objects.create(session=no_plan_session, exercise=self.exercise1, set_number=1, reps_completed=10)
+
+        no_plan_session.refresh_from_db()
+        self.assertFalse(no_plan_session.completed, "Session without plan should remain incomplete")
