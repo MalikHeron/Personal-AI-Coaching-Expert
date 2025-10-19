@@ -5,6 +5,7 @@ import { DelayedComponent } from "./ui/delayed-component";
 import { Spinner } from "./ui/spinner";
 import { Label } from "./ui/label";
 import Footer from "./footer";
+import { User } from "@/types/user";
 
 
 // Set API_URL based on environment (development or production)
@@ -48,8 +49,16 @@ export default function OAuthCallback() {
           sessionStorage.setItem("user", JSON.stringify(response.data));
         }
 
-        // Redirect to /home after successful authentication
-        navigate("/home", { replace: true });
+        const user = response.data as User;
+        if (user && user.onboarding_complete === false) {
+          // Redirect to /onboarding if onboarding is not complete
+          navigate("/onboarding", { replace: true });
+          return;
+        } else {
+          // Proceed to home if onboarding is complete
+          navigate("/home", { replace: true });
+          return;
+        }
       } catch (error) {
         // Log any errors that occur during the OAuth callback
         console.error("OAuth callback error:", error);
