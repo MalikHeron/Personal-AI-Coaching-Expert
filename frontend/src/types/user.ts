@@ -5,6 +5,7 @@ export interface User {
   first_name: string | undefined | null;
   last_name: string | undefined | null;
   picture: string | undefined | null;
+  onboarding_complete: boolean | undefined | null;
   social_profiles?: {
     [provider: string]: {
       picture?: string | null;
