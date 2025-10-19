@@ -126,9 +126,9 @@ INSTALLED_APPS = [
     "identity",
     "rest_framework",
     'django.contrib.sites',
-    'dj_rest_auth',
-    'dj_rest_auth.registration',
-    'rest_framework.authtoken',
+    # 'dj_rest_auth',
+    # 'dj_rest_auth.registration',
+    # 'rest_framework.authtoken',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
@@ -223,6 +223,23 @@ ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_EMAIL_VERIFICATION = 'none'  # or 'optional' / 'mandatory'
 ACCOUNT_USER_MODEL_USERNAME_FIELD = 'username'  # default, but make explicit
 ACCOUNT_USER_MODEL_EMAIL_FIELD = 'email'
+
+# Align django-allauth core flags with signup policy
+# Note: dj-rest-auth now prefers SIGNUP_FIELDS for required flags
+ACCOUNT_USERNAME_REQUIRED = True   # set to False if you want email-only, no username
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_AUTHENTICATION_METHOD = 'email'  # preferred setting over non-standard ACCOUNT_LOGIN_METHODS
+
+# dj-rest-auth: use SIGNUP_FIELDS instead of deprecated USERNAME_REQUIRED/EMAIL_REQUIRED
+# This controls which fields are required during registration.
+REST_AUTH = {
+    "SIGNUP_FIELDS": {
+        "username": {"required": True},
+        "email": {"required": True},
+        "password1": {"required": True},
+        "password2": {"required": True},
+    }
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/
