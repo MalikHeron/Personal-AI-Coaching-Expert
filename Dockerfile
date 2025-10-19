@@ -13,9 +13,9 @@ COPY frontend/package*.json ./
 RUN npm install
 
 COPY frontend/ ./
-# Ensure Vite reads the values by writing an .env.production file
+# Ensure Vite reads the values by writing an .env file
 # (Vite also reads environment at build time, this is an explicit override)
-RUN printf "VITE_API_SERVER=%s\nVITE_ORS_API_KEY=%s\n" "$VITE_API_SERVER" "$VITE_ORS_API_KEY" > .env.production
+RUN printf "VITE_API_SERVER=%s\nVITE_ORS_API_KEY=%s\n" "$VITE_API_SERVER" "$VITE_ORS_API_KEY" > .env
 RUN npm run build
 
 # === Step 2: Build Django backend base (shared for web/celery) ===
