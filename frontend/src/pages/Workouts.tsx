@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState} from "react"
 import { Play, Shuffle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { useNavigate } from "react-router-dom"
 import {
   Card,
   CardContent,
@@ -56,6 +57,7 @@ const SAMPLE_WORKOUTS: Workout[] = [
 ]
 
 export default function Workouts() {
+  const navigate = useNavigate()
   const [workouts, setWorkouts] = useState<Workout[]>(SAMPLE_WORKOUTS)
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<"All" | Exercise["category"] | "Saved">("All")
@@ -81,13 +83,23 @@ export default function Workouts() {
   }
 
   function startWorkout(id: string) {
-    // placeholder: navigate to workout player page or open workout player modal
-    // You will hook this into your MediaPipe tracking player
     const picked = workouts.find((w) => w.id === id)
     if (!picked) return
-    // For now we just log — integrate with router or player
-    console.log("Start workout:", picked)
-    alert(`Starting workout: ${picked.name} — integrate with player`) // dev friendly
+
+    // Map the workout exercises to the format expected by the Workout component
+    const workoutData = picked.exercises.map((e) => {
+      const exercise = EXERCISES.find((ex) => ex.id === e.exerciseId)
+      return {
+        name: exercise?.name || e.exerciseId,
+        reps: e.reps,
+        sets: e.sets,
+        restTimer: e.restSec,
+        difficulty: "Intermediate" as const // You can make this dynamic later
+      }
+    })
+    console.log("Sending over: ", workoutData);
+    // Navigate to workout page with workout data
+    navigate("/demo", { state: { workouts: workoutData, workoutName: picked.name } })
   }
 
   return (
