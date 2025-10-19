@@ -65,34 +65,14 @@ RUN rm -f /etc/nginx/sites-enabled/default \
     && rm -f /etc/nginx/conf.d/*
 COPY nginx/app-prod.conf /etc/nginx/conf.d/default.conf
 
-# --- SSH setup ---
-# Copy sshd configuration and set root password required for SSH
-COPY sshd_config /etc/ssh/
-RUN mkdir -p /var/run/sshd && echo "root:Docker!" | chpasswd
-
-# Copy crontab and entrypoint
-COPY backend/workday_tasks.crontab /etc/cron.d/django-cron
+# Copy the entrypoint script into the image root
 COPY entrypoint.sh /entrypoint.sh
-COPY init_container.sh /opt/startup/init_container.sh
-RUN chmod +x /entrypoint.sh /opt/startup/init_container.sh \
-    && chmod 0644 /etc/cron.d/django-cron \
-    && crontab /etc/cron.d/django-cron \
-    && touch /var/log/cron.log
 
-# Expose SSH and HTTP ports
-EXPOSE 2222 80
+# Ensure Unix line endings and executable bit (handles Windows checkouts)
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
-# Use init script that starts SSH then runs the app entrypoint
-ENTRYPOINT ["/opt/startup/init_container.sh"]
+# Expose HTTP port
+EXPOSE 80
 
-# === Step 4: Celery worker target ===
-FROM backend-base AS celery-worker
-WORKDIR /usr/src/app/backend
-# Override at runtime via App Service if needed; default provided
-CMD ["celery", "-A", "backend", "worker", "-l", "info", "--concurrency", "4"]
-
-# === Step 5: Celery beat target ===
-FROM backend-base AS celery-beat
-WORKDIR /usr/src/app/backend
-# Use DB-backed scheduler to avoid file persistence needs
-CMD ["celery", "-A", "backend", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+# Start the app via the entrypoint (which also launches NGINX)
+ENTRYPOINT ["/entrypoint.sh"]

@@ -1,7 +1,6 @@
 export type Exercise = {
   id?: string
   name?: string
-  category: "Upper" | "Lower" | "Core" | "Full Body"
   description?: string
   order?: number
   sets?: number

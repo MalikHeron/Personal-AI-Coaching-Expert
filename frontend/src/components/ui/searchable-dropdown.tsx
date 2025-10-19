@@ -84,11 +84,6 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
         <DropdownMenuContent
           align="start"
           className="max-h-60 w-[--radix-dropdown-menu-trigger-width] overflow-y-auto"
-          portalled={false}
-          onPointerDownOutside={(e) => {
-            // Keep dropdown interactions from bubbling up as outside clicks for the dialog
-            e.preventDefault();
-          }}
         >
           {showSearch && (
             <SearchBar

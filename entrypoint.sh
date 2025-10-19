@@ -32,11 +32,11 @@ cd /usr/src/app/backend
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
-if [ "$APP_ENV_VALUE" == "production" ]; then
+if [ "$APP_ENV_VALUE" = "production" ]; then
+  echo "Skipping makemigrations in production (APP_ENV=$APP_ENV_VALUE)"
+else
   echo "Making database migrations (dev/local only)..."
   python manage.py makemigrations --noinput
-else
-  echo "Skipping makemigrations in production (APP_ENV=$APP_ENV_VALUE)"
 fi
 
 echo "Applying database migrations..."
@@ -46,27 +46,6 @@ if ! python manage.py migrate; then
   python manage.py migrate --fake-initial
 fi
 
-# # Path to marker file indicating first-time setup is done
-# FIRST_RUN_MARKER="/usr/src/app/.first_run_done"
-
-# # Run one-time Django management commands only if marker file does not exist
-# if [ ! -f "$FIRST_RUN_MARKER" ]; then
-#   echo "Running first-time setup commands..."
-
-#   # Run seed commands; only create marker if all succeed
-#   if python manage.py seed_company && \
-#   python manage.py seed_period && \
-#   python manage.py seed_ifrs && \
-#   python manage.py seed_kpi && \
-#   python manage.py seed_adaptive_upload; then
-#   touch "$FIRST_RUN_MARKER"
-#   echo "First-time setup complete."
-#   else
-#   echo "One or more setup commands failed. Not creating marker file."
-#   exit 1
-#   fi
-# fi
-
 echo "Starting Uvicorn ASGI server..."
 uvicorn backend.asgi:application \
   --host 0.0.0.0 \
@@ -74,14 +53,6 @@ uvicorn backend.asgi:application \
   --timeout-keep-alive 900 \
   --workers 4 \
   --proxy-headers &
-
-# Run clean_projects after startup
-# (
-#   echo "Delaying project cleanup to allow app to start..."
-#   sleep 15
-#   echo "Running clean_projects..."
-#   python manage.py clean_projects --confirm
-# ) &
 
 # Start NGINX in the foreground (main process)
 echo "Starting NGINX..."
