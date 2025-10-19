@@ -163,3 +163,6 @@ data/*
 dumps
 redis
 logs
+ 
+# Azure infra local files (contain secrets)
+infra/azure/*.private.json

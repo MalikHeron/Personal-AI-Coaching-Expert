@@ -1,0 +1,105 @@
+name: Build and deploy single container to Azure Web App (GHCR)
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+# Set these as GitHub Repository Variables or override here
+env:
+  WEBAPP_NAME: ${{ vars.WEBAPP_NAME }}             # e.g. pebekac-backend
+  WEBAPP_RG: ${{ vars.WEBAPP_RG }}                 # resource group (optional for settings)
+  REGISTRY: ghcr.io
+  IMAGE_BASENAME: personal-ai-coaching-expert-app  # image repo name in GHCR (monolith)
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write     # Required for OIDC login to Azure
+      contents: read
+      packages: write     # Push image to GHCR
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Compute GHCR image name (lowercase owner)
+        id: imagename
+        shell: bash
+        run: |
+          OWNER="${GITHUB_REPOSITORY%%/*}"
+          OWNER_LC="${OWNER,,}"
+          echo "owner_lc=$OWNER_LC" >> "$GITHUB_OUTPUT"
+          echo "image=${{ env.REGISTRY }}/${OWNER_LC}/${{ env.IMAGE_BASENAME }}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push monolith image to GHCR (root Dockerfile)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.imagename.outputs.image }}:${{ github.sha }}
+            ${{ steps.imagename.outputs.image }}:latest
+
+      - name: Deploy to Azure Web App (container)
+        id: deploy
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.WEBAPP_NAME }}
+          images: ${{ steps.imagename.outputs.image }}:${{ github.sha }}
+
+  # Optional: Configure app settings (port, env) and GHCR credentials if image is private
+  # - name: Configure app settings
+  #   if: env.WEBAPP_RG != ''
+  #   run: |
+  #     az webapp config appsettings set \
+  #       --resource-group "${WEBAPP_RG}" \
+  #       --name "${WEBAPP_NAME}" \
+  #       --settings \
+  #         WEBSITES_PORT=80 \
+  #         APP_ENV=production \
+  #         DOCKER_ENABLE_CI=true \
+  #         WEBSITES_ENABLE_APP_SERVICE_STORAGE=false \
+  #         DJANGO_REDIS_URL='${{ secrets.DJANGO_REDIS_URL }}' \
+  #         POSTGRES_DB='${{ secrets.POSTGRES_DB }}' \
+  #         POSTGRES_USER='${{ secrets.POSTGRES_USER }}' \
+  #         POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}' \
+  #         POSTGRES_HOST='${{ secrets.POSTGRES_HOST }}' \
+  #         POSTGRES_PORT='${{ secrets.POSTGRES_PORT }}' \
+  #         POSTGRES_DB_URL='${{ secrets.POSTGRES_DB_URL }}'
+
+  # Optional: Only needed if using PRIVATE GHCR image (provide GHCR_USERNAME and GHCR_TOKEN as secrets)
+  # - name: Configure GHCR registry credentials for Web App
+  #   if: env.WEBAPP_RG != ''
+  #   run: |
+  #     az webapp config appsettings set \
+  #       --resource-group "${WEBAPP_RG}" \
+  #       --name "${WEBAPP_NAME}" \
+  #       --settings \
+  #         DOCKER_REGISTRY_SERVER_URL='https://ghcr.io' \
+  #         DOCKER_REGISTRY_SERVER_USERNAME='${{ secrets.GHCR_USERNAME }}' \
+  #         DOCKER_REGISTRY_SERVER_PASSWORD='${{ secrets.GHCR_TOKEN }}'
+
+      - name: Output Web App URL
+        run: |
+          echo "App URL: https://${WEBAPP_NAME}.azurewebsites.net"
