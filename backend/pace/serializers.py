@@ -36,3 +36,21 @@ class WorkoutEnvironmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkoutEnvironment
         fields = ['id', 'name', 'description']
+
+
+class MuscleGroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MuscleGroup
+        fields = ['id', 'name', 'description']
+
+
+class ExerciseSerializer(serializers.ModelSerializer):
+    muscle_group = MuscleGroupSerializer(many=True, read_only=True)
+    equipment = EquipmentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Exercise
+        fields = [
+            'id', 'name', 'description', 'muscle_group', 
+            'difficulty_level', 'equipment', 'video_demo_url'
+        ]

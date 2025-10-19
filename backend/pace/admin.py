@@ -24,3 +24,16 @@ class WorkoutEnvironmentAdmin(admin.ModelAdmin):
 class TrainingStyleAdmin(admin.ModelAdmin): 
     list_display = ['name']
     search_fields = ['name']   
+
+
+@admin.register(MuscleGroup)
+class MuscleGroupAdmin(admin.ModelAdmin):
+    list_display = ['name']
+    search_fields = ['name']
+
+
+@admin.register(Exercise)
+class ExerciseAdmin(admin.ModelAdmin):
+    list_display = ['name', 'difficulty_level']
+    search_fields = ['name']
+    filter_horizontal = ['muscle_group', 'equipment']

@@ -105,3 +105,35 @@ class FitnessProfile(models.Model):
         return f"FitnessProfile of {self.user.username}"
     
 
+class MuscleGroup(models.Model):
+    """
+    Represents a muscle group targeted by exercises.
+    """
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+    
+
+class Exercise(models.Model):
+    """
+    Represents an exercise with its details.
+    """
+    DIFFICULTY_LEVEL_CHOICES = [
+        ('easy', 'Easy'), 
+        ('medium', 'Medium'), 
+        ('hard', 'Hard'),
+    ]
+
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+    muscle_group = models.ManyToManyField(MuscleGroup, blank=True)
+    difficulty_level = models.CharField(max_length=10, choices=DIFFICULTY_LEVEL_CHOICES, blank=True, null=True)
+    equipment = models.ManyToManyField(Equipment, blank=True)
+    environment = models.ManyToManyField(WorkoutEnvironment, blank=True)
+    video_demo_url = models.URLField(blank=True, null=True)
+    Training_style = models.ForeignKey(TrainingStyle, on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return self.name
