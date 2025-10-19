@@ -89,7 +89,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
   useEffect(() => {
     console.log(`📋 summaryOpen changed to: ${summaryOpen}`);
   }, [summaryOpen]);
-  
+
   // Freeze summary stats at finish time so UI shows exact tracked values
   const [summarySetsCompleted, setSummarySetsCompleted] = useState(0);
   const [summaryExercisesCompleted, setSummaryExercisesCompleted] = useState(0);
@@ -284,7 +284,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
       // Check if ALL sets are done
       if (currentSetValue >= currentWorkout.sets) {
         console.log("✓✓✓ ALL SETS DONE! Moving to next workout.");
-        markWorkoutEnd(); 
+        markWorkoutEnd();
         setTimeout(() => {
           moveToNextWorkout();
         }, 1000);
@@ -503,7 +503,11 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
         open={summaryOpen}
         onClose={() => {
           setSummaryOpen(false);
-          navigate('/home/dashboard');
+          if (window.location.pathname === '/home/session') {
+            navigate('/home/dashboard');
+          } else {
+            navigate('/');
+          }
         }}
         workoutName={workoutName}
         totalReps={summaryTotalReps}
