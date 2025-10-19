@@ -3,6 +3,9 @@ from django.conf import settings
 from django.conf.urls.static import static
 from pace.api.profile import *
 from pace.api.reference_data import *
+from pace.api.workout_plan import *
+from pace.api.workout_plan import *
+from pace.api.workout_log import *
 
 urlpatterns = [
     # Profile endpoints
@@ -10,8 +13,21 @@ urlpatterns = [
     path('profile/update/', UpdateProfileAPIView.as_view(), name='update_fitness_profile'),
 
     # Reference data endpoints
-    path('equipment/', EquipmentListAPIView.as_view(), name='equipment_list'),
     path('muscle-group/', MuscleGroupListAPIView.as_view(), name='muscle_group_list'),
-    path('environment/', WorkoutEnvironmentListAPIView.as_view(), name='environment_list'),
     path('training-style/', TrainingStyleListAPIView.as_view(), name='training_style_list'),
+
+    # Workout plan endpoints
+    path("plans/", WorkoutPlanListCreateAPIView.as_view(), name="workoutplan-list-create"),
+    path("plans/<int:pk>/", WorkoutPlanDetailAPIView.as_view(), name="workoutplan-detail"),
+    path("plans/<int:plan_id>/exercises/", WorkoutPlanExerciseAPIView.as_view(), name="plan-add-exercises"),
+    path("plans/<int:plan_id>/exercises/<int:exercise_id>/", WorkoutPlanExerciseAPIView.as_view(), name="plan-remove-exercise"),
+
+    # Workout session endpoints
+    path("sessions/", WorkoutSessionListCreateAPIView.as_view(), name="session-list-create"),
+    path("sessions/<int:session_id>/", WorkoutSessionDetailAPIView.as_view(), name="session-detail"),
+
+    # Workout session logs endpoints
+    path("sessions/<int:session_id>/logs/", ExerciseSetLogListCreateAPIView.as_view(), name="session-log-list-create"),
+    path("sessions/<int:session_id>/logs/<int:log_id>/", ExerciseSetLogDetailAPIView.as_view(), name="session-log-detail"),
+
 ]
