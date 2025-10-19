@@ -85,3 +85,9 @@ class DailyStreakSerializer(serializers.ModelSerializer):
         fields = ['id', 'streak_count', 'last_active']
 
 
+class FitnessAnalyticsSerializer(serializers.Serializer):
+    total_workouts = serializers.IntegerField()
+    total_time_trained = serializers.CharField()
+    average_accuracy = serializers.FloatField()
+    accuracy_over_time = serializers.ListField()
+    accuracy_per_exercise = serializers.ListField()

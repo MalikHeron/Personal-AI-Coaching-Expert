@@ -6,6 +6,7 @@ from pace.api.reference_data import *
 from pace.api.workout_plan import *
 from pace.api.workout_plan import *
 from pace.api.workout_log import *
+from pace.api.analytics import *
 
 urlpatterns = [
     # Profile endpoints
@@ -29,5 +30,8 @@ urlpatterns = [
     # Workout session logs endpoints
     path("sessions/<int:session_id>/logs/", ExerciseSetLogListCreateAPIView.as_view(), name="session-log-list-create"),
     path("sessions/<int:session_id>/logs/<int:log_id>/", ExerciseSetLogDetailAPIView.as_view(), name="session-log-detail"),
+
+    # Dashboard analytics endpoints
+    path("analytics/", FitnessAnalyticsAPIView.as_view(), name="fitness-summary"),
 
 ]

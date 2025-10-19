@@ -1,16 +1,16 @@
-from django.dispatch import receiver
-from allauth.account.signals import user_signed_up
-from django.dispatch import receiver
+from django.conf import settings
 from django.db.models.signals import post_save
-from pace.models import FitnessProfile, ExerciseSetLog, WorkoutSession, DailyStreak
+from django.dispatch import receiver
+from pace.models import FitnessProfile, ExerciseSetLog, WorkoutSession, DailyStreak 
 
-@receiver(user_signed_up)
-def create_fitness_profile(sender, request, user, **kwargs):
-    """
-    Auto-create a FitnessProfile whenever a new user signs up
-    (social or email/password).
-    """
-    FitnessProfile.objects.create(user=user)
+# Works for all CustomUser creations (manual, admin, scripts)
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def create_fitness_profile_for_user(sender, instance, created, **kwargs):
+    # Only create a profile for newly created users
+    if created and not getattr(instance, '_deleting', False):
+        # Avoid duplicates
+        if not hasattr(instance, 'fitnessprofile'):
+            FitnessProfile.objects.create(user=instance)
 
 
 @receiver(post_save, sender=ExerciseSetLog)

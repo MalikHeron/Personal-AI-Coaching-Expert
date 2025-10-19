@@ -116,6 +116,9 @@ INSTALLED_APPS = [
     "identity",
     "rest_framework",
     'django.contrib.sites',
+    'dj_rest_auth',
+    'dj_rest_auth.registration',
+    'rest_framework.authtoken',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
@@ -206,6 +209,10 @@ LOGOUT_URL = 'logout'
 LOGIN_REDIRECT_URL = 'http://localhost/oauth/callback'  # frontend callback URL
 LOGOUT_REDIRECT_URL = 'http://localhost/'  # frontend home URL
 
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_EMAIL_VERIFICATION = 'none'  # or 'optional' / 'mandatory'
+ACCOUNT_USER_MODEL_USERNAME_FIELD = 'username'  # default, but make explicit
+ACCOUNT_USER_MODEL_EMAIL_FIELD = 'email'
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/
