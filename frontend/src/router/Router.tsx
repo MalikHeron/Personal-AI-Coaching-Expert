@@ -3,14 +3,13 @@ import { useEffect } from 'react';
 import Landing from '@/pages/Landing';
 import { UserProvider } from '@/contexts/UserContext';
 import Login from '@/pages/Login';
-import Workout from '@/pages/Workout';
+import WorkoutSession from '@/pages/WorkoutSession';
 import Home from './Home';
 import OAuthCallback from '@/components/oauth-callback';
 import PageNotFound from '@/components/page-not-found';
 import SignUp from '@/pages/Signup';
 import { Onboarding } from '@/pages/Onboarding';
 import { useUser } from '@/hooks/use-user';
-import Workouts from '@/pages/Workouts';
 
 /**
  * Main application router component.
@@ -67,14 +66,12 @@ const Router = () => {
           <Route path="/login" element={<Layout><Login /></Layout>} />
           <Route path="/signup" element={<Layout><SignUp /></Layout>} />
           <Route path="/oauth/callback" element={<Layout><OAuthCallback /></Layout>} />
-          <Route path="/demo" element={<Layout><Workout workouts={[]} /></Layout>} />
+          <Route path="/demo" element={<Layout><WorkoutSession workouts={[]} /></Layout>} />
           <Route path="/onboarding" element={<Layout requiresUser={true}><Onboarding /></Layout>} />
 
           {/* Private routes */}
           <Route path="/home/*" element={<Layout><Home /></Layout>} />
           <Route path="*" element={<PageNotFound />} />
-          <Route path="/plan" element={<Layout><Workouts /></Layout>} />
-
         </Routes>
       </BrowserRouter>
     </UserProvider>

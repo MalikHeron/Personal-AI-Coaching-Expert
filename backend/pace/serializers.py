@@ -1,64 +1,44 @@
 from rest_framework import serializers
 from pace.models import *
 
+
 class FitnessProfileSerializer(serializers.ModelSerializer):
     age = serializers.SerializerMethodField()
 
     class Meta:
         model = FitnessProfile
         fields = [
-            'id', 'user', 'display_name', 'pronouns', 'custom_pronouns',
+            'id', 'user', 'pronouns',
             'birthday', 'age', 'height_cm', 'weight_kg', 'body_fat_percentage',
             'goals', 'medical_conditions', 'fitness_level', 'exercise_frequency',
-            'fitness_goal', 'target_weight_kg', 'gender',
-            'preferred_training_style', 'created_at'
+            'fitness_goal', 'target_weight_kg', 'gender', 'created_at'
         ]
         read_only_fields = ['user', 'age', 'created_at']
 
     def get_age(self, obj):
         return obj.age
-    
-
-
-class TrainingStyleSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = TrainingStyle
-        fields = ['id', 'name', 'description']
-
-
-class MuscleGroupSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MuscleGroup
-        fields = ['id', 'name', 'description']
 
 
 class ExerciseSerializer(serializers.ModelSerializer):
-    #muscle_group = MuscleGroupSerializer(many=True, read_only=True)
-
     class Meta:
         model = Exercise
-        fields = [
-            'id', 'name', 'description', 'video_demo_url'
-        ]
-
-class WorkoutExerciseSerializer(serializers.ModelSerializer):
-    exercise = ExerciseSerializer(read_only=True)
-
-    class Meta:
-        model = WorkoutExercise
-        fields = ['id', 'exercise', 'order', 'sets', 'reps', 'duration_seconds', 'difficulty_level']
+        fields = ['id', 'name', 'order', 'sets',
+                  'reps', 'rest_timer']
 
 
 class WorkoutPlanSerializer(serializers.ModelSerializer):
-    exercises = WorkoutExerciseSerializer(source='workoutexercise_set', many=True, read_only=True)
+    exercises = ExerciseSerializer(many=True, read_only=True)
 
     class Meta:
         model = WorkoutPlan
-        fields = ['id', 'name', 'description', 'exercises', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'description',
+                  'created_at', 'updated_at', 'duration_minutes', 'difficulty_level', 'exercises']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
+
 class ExerciseSetLogSerializer(serializers.ModelSerializer):
-    exercise_name = serializers.CharField(source="exercise.name", read_only=True)
+    exercise_name = serializers.CharField(
+        source="exercise.name", read_only=True)
 
     class Meta:
         model = ExerciseSetLog
@@ -70,7 +50,8 @@ class ExerciseSetLogSerializer(serializers.ModelSerializer):
 
 class WorkoutSessionSerializer(serializers.ModelSerializer):
     plan_name = serializers.CharField(source="plan.name", read_only=True)
-    logs = ExerciseSetLogSerializer(source="exercisesetlog_set", many=True, read_only=True)
+    logs = ExerciseSetLogSerializer(
+        source="exercisesetlog_set", many=True, read_only=True)
 
     class Meta:
         model = WorkoutSession
@@ -78,6 +59,7 @@ class WorkoutSessionSerializer(serializers.ModelSerializer):
             "id", "date", "plan", "plan_name", "rest_period_seconds",
             "score", "duration", "completed", "logs"
         ]
+
 
 class DailyStreakSerializer(serializers.ModelSerializer):
     class Meta:

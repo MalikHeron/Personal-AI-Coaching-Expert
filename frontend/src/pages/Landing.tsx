@@ -32,7 +32,7 @@ export default function Landing() {
   const team = [
     { name: "Malik Heron", role: "Frontend Developer & UX" },
     { name: "Sherissa Pinnock", role: "AI Engineer" },
-    { name: "Trishanna Ford", role: "ML & Data" },
+    { name: "Trishanna Ford", role: "Backend Engineer" },
   ];
 
   // Scroll or navigate to section with offset for sticky navbar

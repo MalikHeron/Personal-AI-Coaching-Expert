@@ -8,6 +8,25 @@ const API_URL = import.meta.env.DEV
 
 export class WorkoutService {
 
+  async getWorkoutPlans(): Promise<any[]> {
+    const cookies = getCookie("csrftoken");
+    const response = await fetch(`${API_URL}/pace/plans/`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": cookies,
+      },
+      credentials: "include",
+    });
+    if (!response.ok) {
+      // Return empty array or handle error as needed
+      return [];
+    }
+    const plans = await response.json();
+    // Each plan should include exercises if backend serializer is set up
+    return plans;
+  }
+
   async updateProfile(data: any): Promise<[boolean, string | null]> {
     const cookies = getCookie("csrftoken");
 
@@ -49,12 +68,16 @@ export class WorkoutService {
     });
 
     if (!response.ok) {
-      // Try to extract error details from the response
       let errorMsg = "Failed to update profile";
       try {
         const err = await response.json();
         if (err && typeof err === 'object') {
-          errorMsg += ": " + JSON.stringify(err);
+          const firstField = Object.keys(err)[0];
+          if (firstField && Array.isArray(err[firstField]) && err[firstField].length > 0) {
+            errorMsg = err[firstField][0];
+          } else {
+            errorMsg = JSON.stringify(err);
+          }
         }
       } catch {
         // Ignore JSON parsing errors
@@ -62,5 +85,70 @@ export class WorkoutService {
       return [false, errorMsg];
     }
     return [true, null];
+  }
+
+  async createWorkoutPlan(data: any): Promise<{ success: boolean; planId?: number; error?: string }> {
+    const cookies = getCookie("csrftoken");
+    const response = await fetch(`${API_URL}/pace/plans/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": cookies,
+      },
+      body: JSON.stringify(data),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      let errorMsg = "Failed to create workout plan";
+      try {
+        const err = await response.json();
+        if (err && typeof err === 'object') {
+          // Try to extract first error message
+          const firstField = Object.keys(err)[0];
+          if (firstField && Array.isArray(err[firstField]) && err[firstField].length > 0) {
+            errorMsg = err[firstField][0];
+          } else {
+            errorMsg = JSON.stringify(err);
+          }
+        }
+      } catch {
+        // Ignore JSON parsing errors
+      }
+      return { success: false, error: errorMsg };
+    }
+    const result = await response.json();
+    // Expect result to contain id
+    return { success: true, planId: result.id };
+  }
+
+  async addExercisesToPlan(planId: number, exercises: any[]): Promise<{ success: boolean; error?: string }> {
+    const cookies = getCookie("csrftoken");
+    const response = await fetch(`${API_URL}/pace/plans/${planId}/exercises/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": cookies,
+      },
+      body: JSON.stringify({ exercises }),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      let errorMsg = "Failed to add exercises";
+      try {
+        const err = await response.json();
+        if (err && typeof err === 'object') {
+          const firstField = Object.keys(err)[0];
+          if (firstField && Array.isArray(err[firstField]) && err[firstField].length > 0) {
+            errorMsg = err[firstField][0];
+          } else {
+            errorMsg = JSON.stringify(err);
+          }
+        }
+      } catch {
+        // Ignore JSON parsing errors
+      }
+      return { success: false, error: errorMsg };
+    }
+    return { success: true };
   }
 }

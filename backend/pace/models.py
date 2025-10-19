@@ -6,14 +6,6 @@ from django.utils import timezone
 user = settings.AUTH_USER_MODEL
 
 
-class TrainingStyle(models.Model):
-    name = models.CharField(max_length=50, unique=True)
-    description = models.TextField(blank=True, null=True)
-
-    def __str__(self):
-        return self.name
-
-
 class FitnessProfile(models.Model):
     """
     Onboarding & fitness-specific data (separate from identity).
@@ -51,10 +43,8 @@ class FitnessProfile(models.Model):
     ]
 
     user = models.OneToOneField(user, on_delete=models.CASCADE)
-    display_name = models.CharField(max_length=100, blank=True, null=True)
     pronouns = models.CharField(
         max_length=30, choices=PRONOUN_CHOICES, blank=True, null=True)
-    custom_pronouns = models.CharField(max_length=50, blank=True, null=True)
     birthday = models.DateField(null=True, blank=True)
     height_cm = models.FloatField(null=True, blank=True)
     gender = models.CharField(
@@ -72,8 +62,6 @@ class FitnessProfile(models.Model):
     fitness_goal = models.CharField(
         max_length=30, choices=FITNESS_GOAL_CHOICES, blank=True, null=True)
     target_weight_kg = models.FloatField(blank=True, null=True)
-    preferred_training_style = models.ForeignKey(
-        TrainingStyle, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     @property
@@ -90,52 +78,9 @@ class FitnessProfile(models.Model):
         return f"FitnessProfile of {self.user.username}"
 
 
-class MuscleGroup(models.Model):
-    """
-    Represents a muscle group targeted by exercises.
-    """
-    name = models.CharField(max_length=100, unique=True)
-    description = models.TextField(blank=True, null=True)
-
-    def __str__(self):
-        return self.name
-
-
-class Exercise(models.Model):
-    """
-    Represents an exercise with its details.
-    """
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True, null=True)
-    muscle_group = models.ManyToManyField(MuscleGroup, blank=True)
-    video_demo_url = models.URLField(blank=True, null=True)
-    Training_style = models.ForeignKey(
-        TrainingStyle, on_delete=models.SET_NULL, null=True, blank=True)
-
-    def __str__(self):
-        return self.name
-
-
 class WorkoutPlan(models.Model):
     """
     A workout plan consisting of multiple exercises.
-    """
-    user = models.ForeignKey(user, on_delete=models.CASCADE)
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    exercises = models.ManyToManyField(Exercise, through='WorkoutExercise')
-    training_style = models.ForeignKey(
-        TrainingStyle, on_delete=models.SET_NULL, null=True, blank=True)
-
-    def __str__(self):
-        return f"{self.name} for {self.user.username}"
-
-
-class WorkoutExercise(models.Model):
-    """
-    Through model to associate exercises with a workout plan, including order and reps/sets.
     """
     DIFFICULTY_LEVEL_CHOICES = [
         ('easy', 'Easy'),
@@ -143,23 +88,40 @@ class WorkoutExercise(models.Model):
         ('hard', 'Hard'),
     ]
 
-    workout_plan = models.ForeignKey(WorkoutPlan, on_delete=models.CASCADE)
-    exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
-    order = models.PositiveIntegerField(
-        help_text="Order of the exercise in the workout")
-    sets = models.PositiveIntegerField(null=True, blank=True)
-    reps = models.PositiveIntegerField(null=True, blank=True)
-    duration_seconds = models.PositiveIntegerField(
-        null=True, blank=True, help_text="Duration in seconds if applicable")
+    user = models.ForeignKey(user, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    duration_minutes = models.PositiveIntegerField(null=True, blank=True)
     difficulty_level = models.CharField(
         max_length=10, choices=DIFFICULTY_LEVEL_CHOICES, blank=True, null=True)
 
-    class Meta:
-        unique_together = ('workout_plan', 'exercise', 'order')
-        ordering = ['order']
-
     def __str__(self):
-        return f"{self.exercise.name} in {self.workout_plan.name} (Order: {self.order})"
+        return f"{self.name} for {self.user.username}"
+
+
+class Exercise(models.Model):
+    """
+    Represents an exercise with its details.
+    """
+    workout_plan = models.ForeignKey(
+        WorkoutPlan, on_delete=models.CASCADE, related_name='exercises', null=True, blank=True)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+    order = models.PositiveIntegerField(blank=True, null=True,
+                                        help_text="Order of the exercise in the workout")
+    sets = models.PositiveIntegerField(null=True, blank=True)
+    reps = models.PositiveIntegerField(null=True, blank=True)
+    rest_timer = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Rest timer in seconds between sets")
+
+    class Meta:
+        ordering = ['order']
+        unique_together = ('workout_plan', 'order')
+        
+    def __str__(self):
+        return self.name
 
 
 class WorkoutSession(models.Model):
@@ -196,7 +158,8 @@ class ExerciseSetLog(models.Model):
     def clean(self):
         """Ensure exercise belongs to the plan tied to the session."""
         if self.session.plan:
-            plan_exercises = self.session.plan.exercises.all()
+            plan_exercises = Exercise.objects.filter(
+                workout_plan=self.session.plan)
             if self.exercise not in plan_exercises:
                 from django.core.exceptions import ValidationError
                 raise ValidationError(

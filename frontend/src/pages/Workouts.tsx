@@ -1,6 +1,5 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { Play, Shuffle } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import { useNavigate } from "react-router-dom"
 import {
   Card,
@@ -12,9 +11,12 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Exercise, Workout } from "@/types/platform"
 import NewWorkoutDialog from "@/components/dialogs/new-workout-dialog"
+import { WorkoutService } from "@/services/WorkoutService"
+import { SessionService, Session } from "@/services/SessionService"
+import { toast } from "sonner"
 
 // Sample exercise catalog (you will replace with real DB or API)
 const EXERCISES: Exercise[] = [
@@ -22,73 +24,63 @@ const EXERCISES: Exercise[] = [
   { id: "curl", name: "Bicep Curls", category: "Upper" },
 ]
 
-const SAMPLE_WORKOUTS: Workout[] = [
-  {
-    id: "w-1",
-    name: "Full Body Blast",
-    durationMinutes: 20,
-    exercises: [
-      { exerciseId: "squat", sets: 3, reps: 15, restSec: 10 },
-      { exerciseId: "curl", sets: 2, reps: 20, restSec: 10 },
-    ],
-    lastCalories: 180,
-  },
-  {
-    id: "w-2",
-    name: "Full Body",
-    durationMinutes: 25,
-    exercises: [
-      { exerciseId: "curl", sets: 4, reps: 10, restSec: 60 },
-      { exerciseId: "squat", sets: 4, reps: 10, restSec: 45 },
-    ],
-    lastCalories: 220,
-  },
-]
-
 export default function Workouts() {
   const navigate = useNavigate()
-  const [workouts, setWorkouts] = useState<Workout[]>(SAMPLE_WORKOUTS)
+  const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [recentSessions, setRecentSessions] = useState<Session[]>([])
   const [query, setQuery] = useState("")
-  const [filter, setFilter] = useState<"All" | Exercise["category"] | "Saved">("All")
+
+  useEffect(() => {
+    async function fetchData() {
+      const plans = await new WorkoutService().getWorkoutPlans();
+      setWorkouts(plans);
+      try {
+        const sessions = await SessionService.listSessions();
+        // Sort by date desc and take last 3 completed
+        const recent = sessions
+          .filter(s => s.completed)
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, 3);
+        setRecentSessions(recent);
+      } catch (e) {
+        console.error('Failed to load recent sessions', e);
+        setRecentSessions([]);
+      }
+    }
+    fetchData();
+  }, [])
 
   const filteredWorkouts = useMemo(() => {
     return workouts.filter((w) => {
-      if (query && !w.name.toLowerCase().includes(query.toLowerCase())) return false
-      if (filter === "All") return true
-      if (filter === "Saved") return true // placeholder — you can track favorites
-      // filter by exercise category
-      const hasCategory = w.exercises.some((e) => {
-        const ex = EXERCISES.find((x) => x.id === e.exerciseId)
-        return ex?.category === filter
-      })
-      return hasCategory
+      if (query && !w.name?.toLowerCase().includes(query.toLowerCase())) return false
+      return true
     })
-  }, [workouts, query, filter])
+  }, [workouts, query])
 
   function quickStart() {
     // pick a random workout and navigate/start
     const pick = workouts[Math.floor(Math.random() * workouts.length)]
-    startWorkout(pick.id)
+    if (pick && pick.id) {
+      startWorkout(pick.id)
+    }
   }
 
-  function startWorkout(id: string) {
+  function startWorkout(id: number) {
     const picked = workouts.find((w) => w.id === id)
     if (!picked) return
 
     // Map the workout exercises to the format expected by the Workout component
-    const workoutData = picked.exercises.map((e) => {
-      const exercise = EXERCISES.find((ex) => ex.id === e.exerciseId)
+    const workoutData = picked.exercises?.map((e) => {
+      const exercise = EXERCISES.find((ex) => ex.name === e.name)
       return {
-        name: exercise?.name || e.exerciseId,
+        name: exercise?.name || e.name,
         reps: e.reps,
         sets: e.sets,
-        restTimer: e.restSec,
-        difficulty: "Intermediate" as const // You can make this dynamic later
+        restTimer: e.rest_timer,
       }
     })
-    console.log("Sending over: ", workoutData);
     // Navigate to workout page with workout data
-    navigate("/demo", { state: { workouts: workoutData, workoutName: picked.name } })
+    navigate("/home/session", { state: { workouts: workoutData, workoutName: picked.name, workoutPlanId: picked.id, planExercises: picked.exercises } })
   }
 
   return (
@@ -100,19 +92,6 @@ export default function Workouts() {
           <p className="text-sm text-muted-foreground">Build, save and start workouts</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Select value={filter} onValueChange={(v) => setFilter(v as any)}>
-            <SelectTrigger className="w-40" size="sm">
-              <SelectValue placeholder="Filter" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All</SelectItem>
-              <SelectItem value="Upper">Upper Body</SelectItem>
-              <SelectItem value="Lower">Lower Body</SelectItem>
-              <SelectItem value="Core">Core</SelectItem>
-              <SelectItem value="Full Body">Full Body</SelectItem>
-            </SelectContent>
-          </Select>
-
           <NewWorkoutDialog />
 
           <Button size='sm' className='cursor-pointer' onClick={quickStart}>
@@ -138,34 +117,31 @@ export default function Workouts() {
           <Card key={w.id} className="hover:shadow-lg transition">
             <CardHeader>
               <CardTitle>{w.name}</CardTitle>
-              <CardDescription>{w.durationMinutes} min • {w.exercises.length} exercises</CardDescription>
+              <CardDescription>{w.duration_minutes} min • {w.exercises?.length} exercises</CardDescription>
             </CardHeader>
             <CardContent className="grow">
               <div className="flex flex-col gap-2">
-                {w.exercises.slice(0, 3).map((e, idx) => {
-                  const ex = EXERCISES.find((x) => x.id === e.exerciseId)
+                {w.exercises?.slice(0, 3).map((e, idx) => {
+                  const ex = EXERCISES.find((x) => x.name === e.name)
                   return (
                     <div key={idx} className="flex justify-between text-sm">
-                      <div className="truncate">{ex?.name ?? e.exerciseId}</div>
+                      <div className="truncate">{ex?.name ?? e.name}</div>
                       <div className="text-muted-foreground">{e.sets}×{e.reps}</div>
                     </div>
                   )
                 })}
-                {w.exercises.length > 3 && (
+                {(w.exercises && w.exercises.length > 3) && (
                   <div className="text-sm text-muted-foreground">+{w.exercises.length - 3} more</div>
                 )}
-                <div className="pt-2 flex items-center gap-3">
-                  <Badge variant="outline">Last: {w.lastCalories ?? "—"} kcal</Badge>
-                </div>
               </div>
             </CardContent>
             <CardFooter>
               <div className="flex w-full gap-3">
-                <Button className="cursor-pointer flex-1" onClick={() => startWorkout(w.id)}>
+                <Button className="cursor-pointer flex-1" onClick={() => startWorkout(w.id!)}>
                   <Play />
                   Start Workout
                 </Button>
-                <Button variant="outline" className="cursor-pointer w-28" onClick={() => alert("Edit workout — implement")}>Edit</Button>
+                <Button variant="outline" disabled className="cursor-pointer w-28" onClick={() => toast("Edit workout — implement")}>Edit</Button>
               </div>
             </CardFooter>
           </Card>
@@ -181,18 +157,23 @@ export default function Workouts() {
           </CardHeader>
           <CardContent>
             <ul className="space-y-3">
-              {workouts.slice(0, 3).map((w) => (
-                <li key={w.id} className="flex justify-between">
-                  <div>
-                    <div className="font-medium">{w.name}</div>
-                    <div className="text-sm text-muted-foreground">{w.durationMinutes} min • {w.exercises.length} ex</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm">{w.lastCalories ?? "—"} kcal</div>
-                    <div className="text-sm text-muted-foreground">{w.exercises.reduce((acc, cur) => acc + cur.reps * cur.sets, 0)} reps</div>
-                  </div>
-                </li>
-              ))}
+              {recentSessions.map((s) => {
+                const duration = s.duration ? s.duration : '00:00:00'
+                type Log = { reps_completed?: number | null }
+                const logs = (s as unknown as { logs?: Log[] }).logs
+                const reps = Array.isArray(logs) ? logs.reduce((acc: number, l: Log) => acc + (l.reps_completed ?? 0), 0) : undefined
+                return (
+                  <li key={s.id} className="flex justify-between">
+                    <div>
+                      <div className="font-medium">{s.plan_name ?? 'Session'}</div>
+                      <div className="text-sm text-muted-foreground">{duration} • {s.completed ? 'completed' : 'in progress'}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-muted-foreground">{typeof reps === 'number' ? reps : '—'} reps</div>
+                    </div>
+                  </li>
+                )
+              })}
             </ul>
           </CardContent>
         </Card>

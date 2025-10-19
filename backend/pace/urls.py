@@ -1,8 +1,5 @@
-from django.urls import path, include
-from django.conf import settings
-from django.conf.urls.static import static
+from django.urls import path
 from pace.api.profile import *
-from pace.api.reference_data import *
 from pace.api.workout_plan import *
 from pace.api.workout_plan import *
 from pace.api.workout_log import *
@@ -12,10 +9,6 @@ urlpatterns = [
     # Profile endpoints
     path('profile/', ProfileAPIView.as_view(), name='fitness_profile'),
     path('profile/update/', UpdateProfileAPIView.as_view(), name='update_fitness_profile'),
-
-    # Reference data endpoints
-    path('muscle-group/', MuscleGroupListAPIView.as_view(), name='muscle_group_list'),
-    path('training-style/', TrainingStyleListAPIView.as_view(), name='training_style_list'),
 
     # Workout plan endpoints
     path("plans/", WorkoutPlanListCreateAPIView.as_view(), name="workoutplan-list-create"),
@@ -33,5 +26,4 @@ urlpatterns = [
 
     # Dashboard analytics endpoints
     path("analytics/", FitnessAnalyticsAPIView.as_view(), name="fitness-summary"),
-
 ]

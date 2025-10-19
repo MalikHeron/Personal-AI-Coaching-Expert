@@ -6,18 +6,34 @@ import { Input } from "../ui/input"
 import { Button } from "../ui/button"
 import { Exercise, Workout } from "@/types/platform"
 import { Plus } from "lucide-react"
+import { IconMinus } from "@tabler/icons-react"
+import { toast } from "sonner"
+import { WorkoutService } from "@/services/WorkoutService"
 
-// Sample exercise catalog (you will replace with real DB or API)
+// Exercise templates for selection
 const EXERCISES: Exercise[] = [
-  { id: "squat", name: "Squats", category: "Lower" },
-  { id: "curl", name: "Bicep Curls", category: "Upper" },
+  {
+    id: "squat",
+    name: "Squats",
+    order: 0,
+    sets: 0,
+    reps: 0,
+    rest_timer: 15
+  },
+  {
+    id: "curl",
+    name: "Bicep Curls",
+    order: 0,
+    sets: 0,
+    reps: 0,
+    rest_timer: 30
+  },
 ]
 
 export default function NewWorkoutDialog() {
   // New workout modal state
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [newName, setNewName] = useState("");
-  const [draftExercises, setDraftExercises] = useState<Workout["exercises"]>([]);
+  const [draftExercises, setDraftExercises] = useState<Exercise[]>([]);
 
   const [openCreate, setOpenCreate] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<string>(EXERCISES[0].id);
@@ -26,22 +42,86 @@ export default function NewWorkoutDialog() {
   const [rest, setRest] = useState(45);
 
   function addDraftExercise() {
-    setDraftExercises((d) => [...d, { exerciseId: selectedExercise, sets, reps, restSec: rest }])
+    const exerciseTemplate = EXERCISES.find(ex => ex.id === selectedExercise);
+    if (!exerciseTemplate) return;
+    setDraftExercises((d) => [
+      ...d,
+      {
+        id: exerciseTemplate.id,
+        name: exerciseTemplate.name,
+        sets,
+        reps,
+        rest_timer: rest,
+        order: d.length + 1
+      }
+    ]);
   }
 
-  function saveNewWorkout() {
-    if (!newName || draftExercises.length === 0) return
-    const newWorkout: Workout = {
-      id: `w-${Date.now()}`,
-      name: newName,
-      durationMinutes: Math.max(5, draftExercises.length * 5),
-      exercises: draftExercises,
+  async function saveNewWorkout() {
+    if (!newName || draftExercises.length === 0) return;
+    // Estimate duration: (sets * reps * avg seconds per rep) + (sets * rest_timer) for each exercise
+    const AVG_SECONDS_PER_REP = 2;
+    let totalSeconds = 0;
+    let totalVolume = 0;
+    let totalRest = 0;
+    draftExercises.forEach(ex => {
+      const sets = ex.sets || 0;
+      const reps = ex.reps || 0;
+      const rest = ex.rest_timer || 0;
+      totalSeconds += (sets * reps * AVG_SECONDS_PER_REP) + (sets * rest);
+      totalVolume += sets * reps;
+      totalRest += sets * rest;
+    });
+    const duration_minutes = Math.max(5, Math.round(totalSeconds / 60));
+    const avgRest = draftExercises.length > 0 ? totalRest / draftExercises.length : 0;
+
+    // Difficulty logic
+    let difficulty_level: "easy" | "medium" | "hard" = "easy";
+    if (totalVolume >= 120 && avgRest <= 30) {
+      difficulty_level = "hard";
+    } else if (totalVolume >= 60 && avgRest <= 60) {
+      difficulty_level = "medium";
     }
-    setWorkouts((w) => [newWorkout, ...w])
-    // reset
-    setNewName("")
-    setDraftExercises([])
-    setOpenCreate(false)
+
+    const newWorkout: Workout = {
+      name: newName,
+      duration_minutes,
+      difficulty_level,
+    };
+
+    try {
+      const workoutService = new WorkoutService();
+      // 1. Save workout plan
+      const planResult = await workoutService.createWorkoutPlan(newWorkout);
+      if (!planResult.success || !planResult.planId) {
+        toast.error("Failed to save workout: " + (planResult.error ?? "Unknown error"));
+        return;
+      }
+      // 2. Save exercises with plan id
+      // Map exercises to API format
+      const exercisesPayload = draftExercises.map((ex) => ({
+        name: ex.name,
+        sets: ex.sets,
+        reps: ex.reps,
+        rest_timer: ex.rest_timer,
+        order: ex.order,
+      }));
+      const exResult = await workoutService.addExercisesToPlan(planResult.planId, exercisesPayload);
+      if (!exResult.success) {
+        toast.error("Workout plan saved, but failed to add exercises: " + (exResult.error ?? "Unknown error"));
+        return;
+      }
+      toast.success("Workout and exercises saved successfully!");
+      // reset form
+      setNewName("");
+      setDraftExercises([]);
+      setOpenCreate(false);
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(`Error saving workout: ${error.message}`);
+        return;
+      }
+    }
   }
 
   return (
@@ -102,18 +182,21 @@ export default function NewWorkoutDialog() {
           </div>
 
           <div>
-            <Label className="mb-2">Planned exercises</Label>
+            <Label className="mb-2 mt-6">Planned exercises</Label>
             <div className="space-y-2">
               {draftExercises.length === 0 && <div className="text-sm text-muted-foreground">No exercises added yet</div>}
               {draftExercises.map((d, i) => {
-                const ex = EXERCISES.find((x) => x.id === d.exerciseId)
+                const ex = EXERCISES.find((x) => x.id === d.id);
                 return (
                   <div key={i} className="flex items-center justify-between gap-3">
                     <div>
                       <div className="font-medium">{ex?.name}</div>
-                      <div className="text-sm text-muted-foreground">{d.sets}×{d.reps} • rest {d.restSec}s</div>
+                      <div className="text-sm text-muted-foreground">{d.sets}×{d.reps} • rest {d.rest_timer}s</div>
                     </div>
-                    <Button variant="ghost" onClick={() => setDraftExercises((s) => s.filter((_, idx) => idx !== i))}>Remove</Button>
+                    <Button variant="ghost" onClick={() => setDraftExercises((s) => s.filter((_, idx) => idx !== i))}>
+                      <IconMinus />
+                      Remove
+                    </Button>
                   </div>
                 )
               })}

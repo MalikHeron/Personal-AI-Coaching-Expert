@@ -1,5 +1,6 @@
 import Dashboard from "@/pages/Dashboard";
 import Workouts from "@/pages/Workouts";
+import WorkoutSession from "@/pages/WorkoutSession";
 
 /**
  * An array of route configuration objects for the application's router.
@@ -17,4 +18,5 @@ import Workouts from "@/pages/Workouts";
 export const routeConfig = [
   { path: '/dashboard', element: <Dashboard /> },
   { path: '/workouts', element: <Workouts /> },
+  { path: '/session', element: <WorkoutSession /> },
 ];

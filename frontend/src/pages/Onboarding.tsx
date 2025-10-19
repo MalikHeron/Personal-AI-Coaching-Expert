@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { AuthService } from "@/services/AuthService"
 import { WorkoutService } from "@/services/WorkoutService"
 
 import { ChevronDownIcon } from "lucide-react"
@@ -73,8 +74,15 @@ export function Onboarding() {
       const [success, message] = await new WorkoutService().updateProfile(data);
 
       if (success) {
-        toast.success("Profile updated successfully!");
-        navigate('/home');
+        const success = await new AuthService().markAsCompleted();
+
+        if (success) {
+          toast.success("Onboarding completed successfully!");
+          navigate('/home');
+        } else {
+          toast.error("Failed to complete onboarding");
+        }
+        // toast.success("Profile updated successfully!");
       } else {
         toast.error("Failed to update profile: " + message);
       }

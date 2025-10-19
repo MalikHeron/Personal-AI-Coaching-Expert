@@ -10,11 +10,31 @@ import {
 import { Input } from "@/components/ui/input"
 import { NavLink } from "react-router-dom"
 import { AuthService } from "@/services/AuthService"
+import { toast } from "sonner"
 
 export default function SignUp() {
-  const handleSignup = (e: React.FormEvent) => {
+
+  const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Handle signup logic here
+    const form = e.currentTarget;
+    const emailInput = form.querySelector<HTMLInputElement>("#email");
+    const passwordInput = form.querySelector<HTMLInputElement>("#password");
+    const confirmPasswordInput = form.querySelector<HTMLInputElement>("#confirm-password");
+
+    const email = emailInput?.value?.trim() || "";
+    const password1 = passwordInput?.value || "";
+    const password2 = confirmPasswordInput?.value || "";
+    const username = email.split("@")[0] || undefined;
+
+    try {
+      await new AuthService().createAccount({ email, password1, password2, username });
+      // Optionally redirect to login or dashboard after successful signup
+      // window.location.href = "/login";
+    } catch (err) {
+      if (err instanceof Error) {
+        toast.error(`Signup failed: ${err.message}`);
+      }
+    }
   };
 
   return (

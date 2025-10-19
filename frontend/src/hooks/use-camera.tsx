@@ -29,25 +29,42 @@ export default function useCamera() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isCameraOn, setIsCameraOn] = useState(false);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const stopCamera = () => {
+    const stream = streamRef.current || (videoRef.current?.srcObject as MediaStream | null);
+    if (stream) {
+      stream.getTracks().forEach(track => {
+        try { track.stop(); } catch { /* ignore */ }
+      });
+    }
+    if (videoRef.current) {
+      try { videoRef.current.pause(); } catch { /* ignore */ }
+      // Clearing srcObject helps some browsers release the camera sooner
+      videoRef.current.srcObject = null;
+    }
+    streamRef.current = null;
+    setIsCameraOn(false);
+  };
 
   // Cleanup on unmount
   useEffect(() => {
-    let stream: MediaStream | null = null;
     const enableCamera = async () => {
       setIsLoading(true);
       setError('');
 
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
+        const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { exact: "user" } },
           audio: false,
         });
-
+        streamRef.current = stream;
         setIsCameraOn(true);
       } catch {
         // Try fallback without exact facingMode
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          streamRef.current = stream;
           setIsCameraOn(true);
           setIsLoading(false);
         } catch {
@@ -57,18 +74,26 @@ export default function useCamera() {
           return;
         }
       }
-      if (videoRef.current && stream) {
-        videoRef.current.srcObject = stream;
+      if (videoRef.current && streamRef.current) {
+        videoRef.current.srcObject = streamRef.current;
         setIsCameraOn(true);
         // Some browsers require play() to be called
         videoRef.current.play().catch(() => { });
       }
     };
     enableCamera();
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+    const onPageHide = () => stopCamera();
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        stopCamera();
       }
+    };
+    window.addEventListener('pagehide', onPageHide);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibility);
+      stopCamera();
     };
   }, []);
 
@@ -76,6 +101,7 @@ export default function useCamera() {
     videoRef,
     isLoading,
     error,
-    isCameraOn
+    isCameraOn,
+    stopCamera,
   };
 };
