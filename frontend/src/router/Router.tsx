@@ -5,6 +5,7 @@ import Login from '@/pages/Login';
 import SignUp from '@/pages/Signup';
 import Workout from '@/pages/Workout';
 import Home from './Home';
+import { UserProvider } from '@/contexts/UserContext';
 
 /**
  * Main application router component.
@@ -40,18 +41,20 @@ const Router = () => {
   };
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public routes */}
-        <Route path="/" element={<Layout overlay={true}><Landing /></Layout>} />
-        <Route path="/login" element={<Layout><Login /></Layout>} />
-        <Route path="/signup" element={<Layout><SignUp /></Layout>} />
-        <Route path="/demo" element={<Layout><Workout /></Layout>} />
+    <UserProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<Layout overlay={true}><Landing /></Layout>} />
+          <Route path="/login" element={<Layout><Login /></Layout>} />
+          <Route path="/signup" element={<Layout><SignUp /></Layout>} />
+          <Route path="/demo" element={<Layout><Workout workouts={[]} /></Layout>} />
 
-        {/* Private routes */}
-        <Route path="/home/*" element={<Layout><Home /></Layout>} />
-      </Routes>
-    </BrowserRouter>
+          {/* Private routes */}
+          <Route path="/home/*" element={<Layout><Home /></Layout>} />
+        </Routes>
+      </BrowserRouter>
+    </UserProvider>
   );
 };
 
