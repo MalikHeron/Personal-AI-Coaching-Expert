@@ -74,6 +74,51 @@ jobs:
       - name: Verify Azure login (debug)
         run: az account show --output table
 
+      - name: Detect Web App resource group
+        id: resolve-rg
+        shell: bash
+        run: |
+          APP_NAME="${{ steps.resolve-app-name.outputs.app_name }}"
+          RG=$(az webapp show -n "$APP_NAME" --query resourceGroup -o tsv || true)
+          if [ -z "$RG" ]; then
+            echo "::warning::Could not resolve resource group for app '$APP_NAME'. If this is a new app, create it first or set the WEBAPP_RG repo variable and enable the settings step."
+          else
+            echo "Resolved resource group: $RG"
+            echo "rg=$RG" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure app settings and GHCR registry credentials (if token provided)
+        if: ${{ steps.resolve-rg.outputs.rg != '' }}
+        env:
+          APP_NAME: ${{ steps.resolve-app-name.outputs.app_name }}
+          RG: ${{ steps.resolve-rg.outputs.rg }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        shell: bash
+        run: |
+          # Basic app settings (port and flags for Linux container)
+          az webapp config appsettings set \
+            --resource-group "$RG" \
+            --name "$APP_NAME" \
+            --settings \
+              WEBSITES_PORT=80 \
+              DOCKER_ENABLE_CI=true \
+              WEBSITES_ENABLE_APP_SERVICE_STORAGE=false
+
+          # Registry credentials for GHCR (only if token provided; otherwise assume public package)
+          if [ -n "$GHCR_TOKEN" ]; then
+            USERNAME="$GITHUB_ACTOR"
+            az webapp config appsettings set \
+              --resource-group "$RG" \
+              --name "$APP_NAME" \
+              --settings \
+                DOCKER_REGISTRY_SERVER_URL='https://ghcr.io' \
+                DOCKER_REGISTRY_SERVER_USERNAME="$USERNAME" \
+                DOCKER_REGISTRY_SERVER_PASSWORD="$GHCR_TOKEN"
+          else
+            echo "No GHCR_TOKEN provided; ensure your GHCR package is public or set GHCR_TOKEN secret (PAT with read:packages)."
+          fi
+
       - name: Build and push monolith image to GHCR (root Dockerfile)
         uses: docker/build-push-action@v5
         with:

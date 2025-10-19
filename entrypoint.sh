@@ -32,7 +32,7 @@ cd /usr/src/app/backend
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
-if [ "$APP_ENV_VALUE" != "production" ]; then
+if [ "$APP_ENV_VALUE" == "production" ]; then
   echo "Making database migrations (dev/local only)..."
   python manage.py makemigrations --noinput
 else

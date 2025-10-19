@@ -60,7 +60,9 @@ COPY --from=backend-base /usr/local/bin /usr/local/bin
 COPY --from=frontend /usr/src/app/frontend /usr/src/app/frontend
 
 # Copy NGINX config
-RUN rm /etc/nginx/sites-enabled/default
+# Remove any default NGINX site/configs to avoid default welcome page
+RUN rm -f /etc/nginx/sites-enabled/default \
+    && rm -f /etc/nginx/conf.d/*
 COPY nginx/app-prod.conf /etc/nginx/conf.d/default.conf
 
 # --- SSH setup ---
