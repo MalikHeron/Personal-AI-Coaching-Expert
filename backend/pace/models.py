@@ -63,6 +63,11 @@ class FitnessProfile(models.Model):
     ("custom", "Custom"),
     ]
 
+    GENDER_CHOICES = [
+        ("male", "Male"),
+        ("female","Female")
+    ]
+
 
     user = models.OneToOneField(user, on_delete=models.CASCADE)
     display_name = models.CharField(max_length=100, blank=True, null=True)
@@ -70,6 +75,7 @@ class FitnessProfile(models.Model):
     custom_pronouns = models.CharField(max_length=50, blank=True, null=True)
     birthday = models.DateField(null=True, blank=True)
     height_cm = models.FloatField(null=True, blank=True)
+    gender = models.CharField(max_length=10, blank=True, null=True, choices=GENDER_CHOICES)
     weight_kg = models.FloatField(null=True, blank=True)
 
     body_fat_percentage = models.FloatField(null=True, blank=True)
@@ -98,3 +104,4 @@ class FitnessProfile(models.Model):
     def __str__(self):
         return f"FitnessProfile of {self.user.username}"
     
+
