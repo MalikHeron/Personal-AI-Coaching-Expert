@@ -38,6 +38,9 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
   const workoutName = state?.workoutName || "Upper Body Strength";
   const workoutPlanId = state?.workoutPlanId ?? null;
   const planExercises = state?.planExercises ?? [];
+
+  // Debug logging
+  console.log(`🏋️ WorkoutSession - Workouts count: ${workouts?.length || 0}, Plan exercises: ${planExercises?.length || 0}`);
   // State variables
   const navigate = useNavigate();
   const [tick, setTick] = useState(0);
@@ -75,6 +78,18 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
   const [setLogs, setSetLogs] = useState<SetLogInput[]>([]);
   const setLogsRef = useRef<SetLogInput[]>([]);
   const [summaryOpen, setSummaryOpen] = useState(false);
+
+  // Refs to track current values for summary (avoid stale closure values)
+  const trackedRepsRef = useRef(0);
+  const overallAccuracyRef = useRef(0);
+  const totalRepsAccumulator = useRef(0); // Accumulate total reps across all sets
+  const totalSetsAccumulator = useRef(0); // Accumulate total sets completed
+
+  // Debug summaryOpen state changes
+  useEffect(() => {
+    console.log(`📋 summaryOpen changed to: ${summaryOpen}`);
+  }, [summaryOpen]);
+  
   // Freeze summary stats at finish time so UI shows exact tracked values
   const [summarySetsCompleted, setSummarySetsCompleted] = useState(0);
   const [summaryExercisesCompleted, setSummaryExercisesCompleted] = useState(0);
@@ -85,9 +100,9 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
   // Derived values
   const currentWorkout: Workout = workouts[currentWorkoutIndex] || {
     name: "Bicep Curl",
-    reps: 10,
+    reps: 5,
     sets: 2,
-    restTimer: 10,
+    restTimer: 3,
     difficulty: "Easy"
   };
 
@@ -136,6 +151,12 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
     // keep logs ref in sync
     setLogsRef.current = setLogs;
   }, [setLogs]);
+
+  // Keep refs in sync with tracker values for accurate summary
+  useEffect(() => {
+    trackedRepsRef.current = trackedReps;
+    overallAccuracyRef.current = overallAccuracy;
+  }, [trackedReps, overallAccuracy]);
 
   useEffect(() => {
     if (setStartTime) {
@@ -229,6 +250,11 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
       const currentSetValue = currentSetRef.current;
       console.log("✓ SET COMPLETE! Current set:", currentSetValue, "Total sets:", currentWorkout.sets);
 
+      // Accumulate total reps and sets before resetting
+      totalRepsAccumulator.current += currentWorkout.reps;
+      totalSetsAccumulator.current += 1;
+      console.log(`📊 ACCUMULATOR UPDATE - Total reps: ${totalRepsAccumulator.current}, Total sets: ${totalSetsAccumulator.current}`);
+
       // Reset for next set
       setSetStartTime(null);
       setAccumulatedSetElapsed(0);
@@ -258,7 +284,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
       // Check if ALL sets are done
       if (currentSetValue >= currentWorkout.sets) {
         console.log("✓✓✓ ALL SETS DONE! Moving to next workout.");
-        markWorkoutEnd();
+        markWorkoutEnd(); 
         setTimeout(() => {
           moveToNextWorkout();
         }, 1000);
@@ -278,47 +304,82 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
     setIsWorkoutActive(false);
     stopTracking();
     setSetStartTime(null);
-    // Capture current totals for summary before any resets
-    setSummaryTotalReps(trackedReps);
-    setSummaryFormScore(formScore);
+
+    // Capture current totals for summary USING REFS to avoid stale closure values
+    // Add partial reps from current incomplete set
+    const partialReps = currentRepRef.current; // Reps in current incomplete set
+    const completedReps = totalRepsAccumulator.current; // Reps from completed sets
+    const currentReps = completedReps + partialReps; // Total reps including partial
+
+    const currentSets = totalSetsAccumulator.current; // Total sets completed
+    const currentAccuracy = overallAccuracyRef.current;
+
+    console.log(`🎯 ===== FINISHING WORKOUT =====`);
+    console.log(`📊 Completed Reps (from finished sets): ${completedReps}`);
+    console.log(`📊 Partial Reps (current set): ${partialReps}`);
+    console.log(`📊 TOTAL REPS: ${currentReps}`);
+    console.log(`📊 Total Sets Accumulator: ${currentSets}`);
+    console.log(`📊 Overall Accuracy: ${currentAccuracy}%`);
+    console.log(`📊 Set Logs Length: ${setLogsRef.current.length}`);
+
+    setSummaryTotalReps(currentReps);
+    setSummarySetsCompleted(currentSets);
+    setSummaryFormScore(currentAccuracy);
+
+    // Calculate duration using the ACTUAL workout timer
+    // workoutDuration tracks when workout is active, accumulatedElapsed tracks paused time
+    const currentRunningTime = workoutDuration !== null ? (Date.now() - workoutDuration) : 0;
+    const totalDurationMs = accumulatedElapsed + currentRunningTime;
+    const totalSeconds = Math.floor(totalDurationMs / 1000);
+    setSummaryDurationSeconds(totalSeconds);
+    console.log(`⏱️ Duration calc - Accumulated: ${accumulatedElapsed}ms, Current: ${currentRunningTime}ms, Total: ${totalSeconds}s`);
+
+    // Calculate exercises completed from set logs
+    const logsToSend = setLogsRef.current;
+    const uniqueExercises = new Set(logsToSend.map(l => l.exercise_id)).size;
+    setSummaryExercisesCompleted(uniqueExercises);
+
+    console.log(`📊 Summary Captured - Duration: ${totalSeconds}s, Exercises: ${uniqueExercises}`);
 
     // Persist logs and session summary
     if (currentSessionId && sessionStartTimeRef.current) {
       try {
         // 1) Send accumulated set logs if any
-        const logsToSend = setLogsRef.current;
         if (logsToSend.length > 0) {
           await SessionService.createSetLogs(currentSessionId, logsToSend);
           console.log(`✓ Posted ${logsToSend.length} set logs`);
         }
 
         // 2) Patch session with duration, score, completed
-        const endTime = new Date();
-        const startTime = new Date(sessionStartTimeRef.current);
-        const totalSeconds = Math.max(0, Math.floor((endTime.getTime() - startTime.getTime()) / 1000));
         const hh = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
         const mm = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
         const ss = String(totalSeconds % 60).padStart(2, '0');
         const durationStr = `${hh}:${mm}:${ss}`;
 
-        // Freeze summary stats before clearing local state
-        setSummaryDurationSeconds(totalSeconds);
-        setSummarySetsCompleted(logsToSend.length);
-        setSummaryExercisesCompleted(new Set(logsToSend.map(l => l.exercise_id)).size);
+        console.log(`📊 Sending to backend - Duration: ${durationStr}, Score: ${currentAccuracy}%`);
 
         await SessionService.patchSession(currentSessionId, {
           duration: durationStr,
-          score: formScore,
+          score: currentAccuracy,
           completed: true,
         });
         console.log("✓ Workout session updated in backend");
 
         // Show summary dialog
-        setSummaryOpen(true);
+        console.log("🎉 Opening summary dialog with stats:", {
+          reps: summaryTotalReps,
+          formScore: summaryFormScore,
+          sets: logsToSend.length
+        });
       } catch (error) {
         console.error("Failed to store session data:", error);
       }
+
     }
+
+    // ALWAYS show summary dialog - move before any other state updates
+    console.log("🚀 Setting summaryOpen to TRUE");
+    setSummaryOpen(true);
 
     toast.success("Workout session ended.");
     setStarted(false);
@@ -329,7 +390,10 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
   // Reset session state
     setCurrentSessionId(null);
     sessionStartTimeRef.current = null;
-  setSetLogs([]);
+    setSetLogs([]);
+    totalRepsAccumulator.current = 0; // Reset accumulators for next workout
+    totalSetsAccumulator.current = 0;
+    console.log(`🔄 Accumulators reset to 0`);
 
     setTimeout(() => {
       stopCamera();
@@ -338,7 +402,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
         canvasRef.current.height = 0;
       }
     }, 1000);
-  }, [stopTracking, markWorkoutEnd, canvasRef, currentSessionId, formScore, sessionStartTimeRef, trackedReps, stopCamera]);
+  }, [stopTracking, markWorkoutEnd, canvasRef, currentSessionId, stopCamera]);
 
   const moveToNextWorkout = useCallback(() => {
     const nextIndex = currentWorkoutIndex + 1;
@@ -529,7 +593,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
                 </div>
                 <div className="p-2 bg-muted rounded-md shadow-sm">
                   <div className="text-xs text-muted-foreground">Sets Completed</div>
-                  <div className="font-semibold">{currentSet}/ {currentWorkout.sets}</div>
+                  <div className="font-semibold">{currentSet - 1} / {currentWorkout.sets}</div>
                 </div>
                 <div className="p-2 bg-muted rounded-md shadow-sm">
                   <div className="text-xs text-muted-foreground">Duration</div>
@@ -600,7 +664,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
               </div>
               <div className="flex justify-between text-sm ">
                 <span>Total Exercises</span>
-                <span className="font-medium text-muted-foreground">{workouts.length}</span>
+                <span className="font-medium text-muted-foreground">{planExercises.length || workouts.length}</span>
               </div>
               <div className="flex justify-between text-sm ">
                 <span>Elapsed Time</span>
