@@ -222,6 +222,20 @@ export class DashboardService {
   /**
    * Update an existing workout session
    */
+  public static async updateOnBoardingStatus(userId: number, completed: boolean): Promise<void> {
+    const response = await fetch(`${API_URL}/api/pace/users/${userId}/onboarding/`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ completed }),
+    });
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`HTTP ${response.status}: ${error}`);
+    }
+  }
   public static async updateWorkoutSession(id: number, session: Partial<WorkoutSession>): Promise<WorkoutSession> {
     const response = await fetch(`${API_URL}/api/pace/workouts/${id}/`, {
       method: 'PUT',

@@ -11,6 +11,9 @@ import {
   drawAngleBadge,
   completeCanvas,
 } from './../utils';
+import useAudio from './use-audio';
+
+const {play}= useAudio();
 
 type ArmSide = 'right' | 'left' | 'both';
 
@@ -32,6 +35,19 @@ export function useBicepCurlTracker(
   const [currentAngle, setCurrentAngle] = useState(0);
   const stageRef = useRef<'up' | 'down' | null>(null);
 
+  // Track consecutive visibility failures
+  const visibilityFailCount = useRef(0);
+  const lastVisibilityWarning = useRef(0);
+
+  // Track consecutive form failures
+  const elbowExtensionFailCount = useRef(0);
+  const rangeOfMotionFailCount = useRef(0);
+  const lastElbowWarning = useRef(0);
+  const lastRangeWarning = useRef(0);
+
+  // Track current rep start time for accurate duration calculation
+  const currentRepStartTime = useRef<number | null>(null);
+
   // Utilities
   const feedbackManager = useFeedbackThrottle(setFeedback);
   const repTracker = useRepTracker();
@@ -46,10 +62,24 @@ export function useBicepCurlTracker(
       const elbowIndex = arm === 'right' ? 14 : 13;
       const wristIndex = arm === 'right' ? 16 : 15;
 
-      // Check visibility
-      if (!checkLandmarkVisibility(landmarks, [shoulderIndex, elbowIndex, wristIndex])) {
-        feedbackManager.setFeedback('Ensure your full arm is visible to the camera.');
+      // Check visibility with lower threshold (0.5 instead of 0.8)
+      const isVisible = checkLandmarkVisibility(landmarks, [shoulderIndex, elbowIndex, wristIndex], 0.5);
+
+      if (!isVisible) {
+        visibilityFailCount.current += 1;
+
+        // Only warn after 30 consecutive failures (~1 second at 30fps)
+        // AND only if we haven't warned in the last 5 seconds
+        const now = Date.now();
+        if (visibilityFailCount.current > 30 && now - lastVisibilityWarning.current > 5000) {
+          feedbackManager.setFeedback('Ensure your full arm is visible to the camera.');
+          play('full_arm_visibility');
+          lastVisibilityWarning.current = now;
+        }
         return;
+      } else {
+        // Reset fail count when visibility is good
+        visibilityFailCount.current = 0;
       }
 
       // Get landmarks
@@ -66,17 +96,40 @@ export function useBicepCurlTracker(
 
       setCurrentAngle(Math.round(angle));
 
-      // Form checks
+      // Form checks with debouncing
       let newFeedback = '';
       const shoulderToElbowDistance = Math.abs(elbow.y - shoulder.y);
       const elbowToWristDistance = Math.abs(wrist.y - elbow.y);
+      const now = Date.now();
 
-      if (shoulderToElbowDistance > 0.2) {
-        newFeedback += 'Avoid overextending your elbow! ';
+      // Check elbow extension (only warn if consistently bad)
+      if (shoulderToElbowDistance > 0.25) {
+        elbowExtensionFailCount.current += 1;
+
+        // Only warn after 45 consecutive failures (~1.5 seconds at 30fps)
+        // AND only if we haven't warned in the last 8 seconds
+        if (elbowExtensionFailCount.current > 45 && now - lastElbowWarning.current > 8000) {
+          newFeedback += 'Avoid overextending your elbow! ';
+          play('elbow_extension');
+          lastElbowWarning.current = now;
+        }
+      } else {
+        elbowExtensionFailCount.current = 0;
       }
 
-      if (elbowToWristDistance < 0.1) {
-        newFeedback += 'Ensure a full range of motion! ';
+      // Check range of motion (only warn if consistently bad)
+      if (elbowToWristDistance < 0.08) {
+        rangeOfMotionFailCount.current += 1;
+
+        // Only warn after 45 consecutive failures (~1.5 seconds at 30fps)
+        // AND only if we haven't warned in the last 8 seconds
+        if (rangeOfMotionFailCount.current > 45 && now - lastRangeWarning.current > 8000) {
+          newFeedback += 'Ensure a full range of motion! ';
+          play('full_range_motion');
+          lastRangeWarning.current = now;
+        }
+      } else {
+        rangeOfMotionFailCount.current = 0;
       }
 
       // Rep counting logic
@@ -84,6 +137,7 @@ export function useBicepCurlTracker(
         // Arm extended (down position)
         if (stageRef.current !== 'down') {
           stageRef.current = 'down';
+          currentRepStartTime.current = Date.now(); // Track start time here
           repTracker.startRep();
 
           // Start workout timer on first rep
@@ -93,19 +147,26 @@ export function useBicepCurlTracker(
         }
       } else if (angle < 35 && stageRef.current === 'down') {
         // Arm curled (up position) - rep complete!
-        const repDuration =
-          repTracker.repDurations.length > 0
-            ? repTracker.repDurations[repTracker.repDurations.length - 1]
-            : 0;
+
+        // Calculate CURRENT rep duration accurately
+        const repDuration = currentRepStartTime.current
+          ? (Date.now() - currentRepStartTime.current) / 1000
+          : 0;
 
         const isGoodRep = repDuration >= 1.0 && !newFeedback;
 
+        // Debug logging
+        console.log(`Rep completed: ${repDuration.toFixed(2)}s - ${isGoodRep ? 'GOOD' : 'BAD'}`);
+
         if (repDuration < 1.0) {
           newFeedback += 'Slow down! ';
+          play('slow_down');
         } else if (isGoodRep) {
           newFeedback += 'Good rep! ';
+          play('good_rep');
           if (repTracker.goodRepsInARow >= 2) {
             newFeedback = 'Great form! Keep it up!';
+            play('great_form');
           }
         }
 
@@ -113,6 +174,7 @@ export function useBicepCurlTracker(
         const count = repTracker.incrementCounter();
 
         stageRef.current = 'up';
+        currentRepStartTime.current = null; // Reset for next rep
 
         if (onRepComplete) {
           onRepComplete(count, isGoodRep);

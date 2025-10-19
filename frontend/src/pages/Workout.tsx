@@ -63,7 +63,7 @@ export default function Workout({ workouts: defaultWorkouts = [] }: { workouts?:
 
   // Derived values
   const currentWorkout: Workout = workouts[currentWorkoutIndex] || {
-    name: "Bicep Curl",
+    name: "Squats",
     reps: 10,
     sets: 2,
     restTimer: 10,

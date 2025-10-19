@@ -11,8 +11,9 @@ import {
   drawAngleBadge,
   completeCanvas,
 } from './../utils';
-
+import useAudio from './use-audio';
 type LegSide = 'right' | 'left' | 'both';
+const {play}= useAudio();
 
 /**
  * Streamlined squat tracker using modular utilities
@@ -33,6 +34,19 @@ export function useSquatTracker(
   const stageRef = useRef<'standing' | 'squatting' | null>(null);
   const minAngleRef = useRef<number | null>(null);
 
+  // Track consecutive visibility failures
+  const visibilityFailCount = useRef(0);
+  const lastVisibilityWarning = useRef(0);
+
+  // Track consecutive form failures
+  const kneeOverToesFailCount = useRef(0);
+  const chestUpFailCount = useRef(0);
+  const lastKneeWarning = useRef(0);
+  const lastChestWarning = useRef(0);
+
+  // Track current rep start time for accurate duration calculation
+  const currentRepStartTime = useRef<number | null>(null);
+
   // Utilities
   const feedbackManager = useFeedbackThrottle(setFeedback);
   const repTracker = useRepTracker();
@@ -47,10 +61,24 @@ export function useSquatTracker(
       const kneeIndex = leg === 'right' ? 26 : 25;
       const ankleIndex = leg === 'right' ? 28 : 27;
 
-      // Check visibility
-      if (!checkLandmarkVisibility(landmarks, [hipIndex, kneeIndex])) {
-        feedbackManager.setFeedback('Ensure your full body is visible to the camera.');
+      // Check visibility with lower threshold (0.5 instead of 0.8)
+      const isVisible = checkLandmarkVisibility(landmarks, [hipIndex, kneeIndex, ankleIndex], 0.5);
+
+      if (!isVisible) {
+        visibilityFailCount.current += 1;
+
+        // Only warn after 30 consecutive failures (~1 second at 30fps)
+        // AND only if we haven't warned in the last 5 seconds
+        const now = Date.now();
+        if (visibilityFailCount.current > 30 && now - lastVisibilityWarning.current > 5000) {
+          feedbackManager.setFeedback('Ensure your full body is visible to the camera.');
+          play('visibility');
+          lastVisibilityWarning.current = now;
+        }
         return;
+      } else {
+        // Reset fail count when visibility is good
+        visibilityFailCount.current = 0;
       }
 
       // Get landmarks
@@ -74,21 +102,42 @@ export function useSquatTracker(
         }
       }
 
-      // Form checks
+      // Form checks with debouncing
       let newFeedback = '';
       const shoulderIndex = leg === 'right' ? 12 : 11;
       const shoulder = landmarks[shoulderIndex];
+      const now = Date.now();
 
-      // Check if knees go past toes
-      const kneeOverToes = Math.abs(knee.x - ankle.x) > 0.08;
+      // Check if knees go past toes (only warn if consistently bad)
+      const kneeOverToes = Math.abs(knee.x - ankle.x) > 0.1; // More lenient threshold
       if (kneeOverToes && stageRef.current === 'squatting') {
-        newFeedback += 'Keep knees behind toes! ';
+        kneeOverToesFailCount.current += 1;
+
+        // Only warn after 45 consecutive failures (~1.5 seconds at 30fps)
+        // AND only if we haven't warned in the last 8 seconds
+        if (kneeOverToesFailCount.current > 45 && now - lastKneeWarning.current > 8000) {
+          newFeedback += 'Keep knees behind toes! ';
+          play('knees_behind_toes');
+          lastKneeWarning.current = now;
+        }
+      } else {
+        kneeOverToesFailCount.current = 0;
       }
 
-      // Check back angle (chest up)
+      // Check back angle (chest up) (only warn if consistently bad)
       const backAngle = Math.abs(shoulder.y - hip.y);
-      if (backAngle < 0.15 && stageRef.current === 'squatting') {
-        newFeedback += 'Keep chest up! ';
+      if (backAngle < 0.12 && stageRef.current === 'squatting') { // More lenient threshold
+        chestUpFailCount.current += 1;
+
+        // Only warn after 45 consecutive failures (~1.5 seconds at 30fps)
+        // AND only if we haven't warned in the last 8 seconds
+        if (chestUpFailCount.current > 45 && now - lastChestWarning.current > 8000) {
+          newFeedback += 'Keep chest up! ';
+          play('chest_up');
+          lastChestWarning.current = now;
+        }
+      } else {
+        chestUpFailCount.current = 0;
       }
 
       // Rep counting logic
@@ -104,22 +153,29 @@ export function useSquatTracker(
           const depthAchieved = minAngleRef.current;
           const wasDeepEnough = depthAchieved !== null && depthAchieved < DEPTH_THRESHOLD;
 
-          const repDuration =
-            repTracker.repDurations.length > 0
-              ? repTracker.repDurations[repTracker.repDurations.length - 1]
-              : 0;
+          // Calculate CURRENT rep duration accurately
+          const repDuration = currentRepStartTime.current
+            ? (Date.now() - currentRepStartTime.current) / 1000
+            : 0;
+
+          // Debug logging
+          console.log(`Squat completed: ${repDuration.toFixed(2)}s, depth: ${depthAchieved}° - ${wasDeepEnough ? 'DEEP ENOUGH' : 'NOT DEEP'}`);
 
           // More lenient: count rep if depth is good OR duration is good
-          const isGoodRep = (repDuration >= 1.0 && wasDeepEnough) || (repDuration >= 1.5 && depthAchieved !== null && depthAchieved < 120);
+          const isGoodRep = (repDuration >= 2.0 && wasDeepEnough) && !newFeedback;
 
-          if (repDuration < 2) {
+          if (repDuration < 2.0) {
             newFeedback += 'Slow down! ';
+            play('slow_down');
           } else if (!wasDeepEnough && depthAchieved !== null && depthAchieved >= 120) {
             newFeedback += 'Go deeper! ';
-          } else if (isGoodRep && !newFeedback) {
+            play('go_deeper');
+          } else if (isGoodRep) {
             newFeedback += 'Perfect squat! ';
+            play('perfect_squat');
             if (repTracker.goodRepsInARow >= 2) {
               newFeedback = 'Excellent form!';
+              play('excellent_form');
             }
           }
 
@@ -128,6 +184,7 @@ export function useSquatTracker(
 
           stageRef.current = 'standing';
           minAngleRef.current = null;
+          currentRepStartTime.current = null; // Reset for next rep
 
           if (onRepComplete) {
             onRepComplete(count, isGoodRep);
@@ -143,6 +200,7 @@ export function useSquatTracker(
         // Going into squat - allow transition even if no stage is set
         const wasNullBefore = stageRef.current === null;
         stageRef.current = 'squatting';
+        currentRepStartTime.current = Date.now(); // Track start time here
         repTracker.startRep();
         minAngleRef.current = angle;
         // Start workout timer if first movement detected
