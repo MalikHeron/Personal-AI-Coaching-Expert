@@ -32,12 +32,16 @@ cd /usr/src/app/backend
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
-if [ "$APP_ENV_VALUE" = "production" ]; then
-  echo "Skipping makemigrations in production (APP_ENV=$APP_ENV_VALUE)"
-else
-  echo "Making database migrations (dev/local only)..."
-  python manage.py makemigrations --noinput
-fi
+# Use POSIX-safe case statement (avoids dash 'unexpected operator')
+case "$APP_ENV_VALUE" in
+  production)
+    echo "Skipping makemigrations in production (APP_ENV=$APP_ENV_VALUE)"
+    ;;
+  *)
+    echo "Making database migrations (dev/local only)..."
+    python manage.py makemigrations --noinput
+    ;;
+esac
 
 echo "Applying database migrations..."
 # Try normal migrate, fallback to faking if duplicate table errors occur
