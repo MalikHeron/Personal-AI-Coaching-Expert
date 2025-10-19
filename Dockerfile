@@ -2,10 +2,20 @@
 FROM node:18-alpine AS frontend
 WORKDIR /usr/src/app/frontend
 
+# Build-time variables provided from CI (GitHub Actions) or local build
+# These are safe to expose since anything under VITE_* ends up baked into static assets
+ARG VITE_API_SERVER
+ARG VITE_ORS_API_KEY
+ENV VITE_API_SERVER=${VITE_API_SERVER}
+ENV VITE_ORS_API_KEY=${VITE_ORS_API_KEY}
+
 COPY frontend/package*.json ./
 RUN npm install
 
 COPY frontend/ ./
+# Ensure Vite reads the values by writing an .env.production file
+# (Vite also reads environment at build time, this is an explicit override)
+RUN printf "VITE_API_SERVER=%s\nVITE_ORS_API_KEY=%s\n" "$VITE_API_SERVER" "$VITE_ORS_API_KEY" > .env.production
 RUN npm run build
 
 # === Step 2: Build Django backend base (shared for web/celery) ===
