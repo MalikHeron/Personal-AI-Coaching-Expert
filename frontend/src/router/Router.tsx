@@ -33,7 +33,11 @@ const Router = () => {
   }, []);
 
   const Layout = ({ children, overlay = false, requiresUser = false }: { children: React.ReactNode, overlay?: boolean, requiresUser?: boolean }) => {
-    const { user } = useUser();
+    const { user, refreshUser } = useUser();
+    
+    useEffect(() => {
+      refreshUser();
+    }, [refreshUser]);
 
     return (
       <>

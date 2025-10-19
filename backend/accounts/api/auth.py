@@ -55,6 +55,7 @@ class UserInfoView(APIView):
             "email": user.email,
             "first_name": getattr(user, "first_name", ""),
             "last_name": getattr(user, "last_name", ""),
+            "onboarding_completed": getattr(user, "onboarding_completed", False),
             "social_profiles": {}
         }
         social_accounts = SocialAccount.objects.filter(user=user)

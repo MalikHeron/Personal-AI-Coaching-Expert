@@ -50,7 +50,7 @@ export default function OAuthCallback() {
         }
 
         const user = response.data as User;
-        if (user && user.onboarding_complete === false) {
+        if (user && user.onboarding_completed === false) {
           // Redirect to /onboarding if onboarding is not complete
           navigate("/onboarding", { replace: true });
           return;

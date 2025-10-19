@@ -1,4 +1,4 @@
-import { useMemo, useState} from "react"
+import { useMemo, useState } from "react"
 import { Play, Shuffle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useNavigate } from "react-router-dom"
@@ -18,11 +18,8 @@ import NewWorkoutDialog from "@/components/dialogs/new-workout-dialog"
 
 // Sample exercise catalog (you will replace with real DB or API)
 const EXERCISES: Exercise[] = [
-  { id: "pushup", name: "Push-ups", category: "Upper" },
   { id: "squat", name: "Squats", category: "Lower" },
   { id: "curl", name: "Bicep Curls", category: "Upper" },
-  { id: "plank", name: "Plank", category: "Core" },
-  { id: "burpee", name: "Burpees", category: "Full Body" },
 ]
 
 const SAMPLE_WORKOUTS: Workout[] = [
@@ -31,28 +28,20 @@ const SAMPLE_WORKOUTS: Workout[] = [
     name: "Full Body Blast",
     durationMinutes: 20,
     exercises: [
-      { exerciseId: "pushup", sets: 3, reps: 12, restSec: 45 },
-      { exerciseId: "squat", sets: 3, reps: 15, restSec: 45 },
-      { exerciseId: "plank", sets: 2, reps: 1, restSec: 60 },
+      { exerciseId: "squat", sets: 3, reps: 15, restSec: 10 },
+      { exerciseId: "curl", sets: 2, reps: 20, restSec: 10 },
     ],
     lastCalories: 180,
   },
   {
     id: "w-2",
-    name: "Upper Body Strength",
+    name: "Full Body",
     durationMinutes: 25,
     exercises: [
-      { exerciseId: "pushup", sets: 4, reps: 10, restSec: 60 },
-      { exerciseId: "curl", sets: 4, reps: 10, restSec: 45 },
+      { exerciseId: "curl", sets: 4, reps: 10, restSec: 60 },
+      { exerciseId: "squat", sets: 4, reps: 10, restSec: 45 },
     ],
     lastCalories: 220,
-  },
-  {
-    id: "w-3",
-    name: "Quick Core",
-    durationMinutes: 10,
-    exercises: [{ exerciseId: "plank", sets: 3, reps: 1, restSec: 30 }],
-    lastCalories: 60,
   },
 ]
 
@@ -222,9 +211,6 @@ export default function Workouts() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Create workout dialog */}
-
     </div>
   )
 }

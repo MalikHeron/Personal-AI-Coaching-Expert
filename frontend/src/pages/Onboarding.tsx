@@ -17,11 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
+import { WorkoutService } from "@/services/WorkoutService"
 
 import { ChevronDownIcon } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { toast } from "sonner"
 
 export function Onboarding() {
   const [open, setOpen] = useState(false);
@@ -33,12 +34,11 @@ export function Onboarding() {
   const [fitnessLevel, setFitnessLevel] = useState("");
   const [fitnessGoal, setFitnessGoal] = useState("");
   const [personalGoals, setPersonalGoals] = useState<string[]>([]);
-  const [otherGoal, setOtherGoal] = useState("");
   const [isFormValid, setIsFormValid] = useState(false);
   const navigate = useNavigate();
 
   const personalGoalsOptions = [
-    { value: "lose_weight", label: "Lose Weight" },
+    { value: "lose_weight", label: "Weight Loss" },
     { value: "build_muscle", label: "Build Muscle" },
     { value: "increase_endurance", label: "Increase Endurance" },
     { value: "improve_flexibility", label: "Improve Flexibility" },
@@ -54,7 +54,9 @@ export function Onboarding() {
     setIsFormValid(!!isValid);
   }, [gender, pronouns, date, height, weight, fitnessLevel, fitnessGoal, personalGoals]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     const data = {
       gender,
       pronouns,
@@ -64,10 +66,24 @@ export function Onboarding() {
       fitnessLevel,
       fitnessGoal,
       personalGoals,
-      otherGoal,
     }
     console.log("Onboarding form data:", data)
-    // You can send 'data' to your backend here
+
+    try {
+      const [success, message] = await new WorkoutService().updateProfile(data);
+
+      if (success) {
+        toast.success("Profile updated successfully!");
+        navigate('/home');
+      } else {
+        toast.error("Failed to update profile: " + message);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error("Error updating profile:", error.message);
+      }
+      toast.error("Failed to update profile");
+    }
   }
 
   return (
@@ -191,7 +207,6 @@ export function Onboarding() {
                           placeholder="Select personal goals"
                           showSearch={false}
                         />
-                        <Textarea id="onboarding-goals-other" placeholder="If other, please specify" className="resize-none mt-2" value={otherGoal} onChange={e => setOtherGoal(e.target.value)} />
                       </Field>
                     </FieldGroup>
                   </FieldSet>

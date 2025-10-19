@@ -9,7 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import useExerciseTracker from "@/hooks/use-exercise-tracker";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { DashboardService, WorkoutSession, RepLog } from '../services/DashboardService';
+import { DashboardService } from '../services/DashboardService';
 
 type Workout = {
   name: string;
