@@ -30,7 +30,7 @@ const EXERCISES: Exercise[] = [
   },
 ]
 
-export default function NewWorkoutDialog() {
+export default function NewWorkoutDialog({ setRefreshToggle }: { setRefreshToggle: React.Dispatch<React.SetStateAction<boolean>> }) {
   // New workout modal state
   const [newName, setNewName] = useState("");
   const [draftExercises, setDraftExercises] = useState<Exercise[]>([]);
@@ -116,6 +116,7 @@ export default function NewWorkoutDialog() {
       setNewName("");
       setDraftExercises([]);
       setOpenCreate(false);
+      setRefreshToggle((prev) => !prev);
     } catch (error) {
       if (error instanceof Error) {
         toast.error(`Error saving workout: ${error.message}`);

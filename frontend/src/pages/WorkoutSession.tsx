@@ -387,7 +387,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
     setAccumulatedSetElapsed(0);
     markWorkoutEnd();
 
-  // Reset session state
+    // Reset session state
     setCurrentSessionId(null);
     sessionStartTimeRef.current = null;
     setSetLogs([]);
@@ -512,11 +512,13 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
         setsCompleted={summarySetsCompleted}
         exercisesCompleted={summaryExercisesCompleted}
       />
-      <div className="flex items-center justify-between p-4">
-        <Button variant='outline' className="cursor-pointer" onClick={() => navigate('/')}>
-          <ChevronLeftIcon />
-          Back to Home
-        </Button>
+      <div className={`flex items-center ${window.location.pathname !== '/home/session' ? 'justify-between' : 'justify-end'}`}>
+        {window.location.pathname !== '/home/session' &&
+          <Button variant='outline' className="cursor-pointer" onClick={() => navigate('/')}>
+            <ChevronLeftIcon />
+            Back to Home
+          </Button>
+        }
 
         <div className="flex gap-2">
           {isWorkoutActive ? (

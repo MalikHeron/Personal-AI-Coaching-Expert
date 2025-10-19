@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
 import logging
+import dj_database_url
 import os
 from pathlib import Path
 from identity.django import Auth
@@ -71,16 +72,26 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 
-DATABASES = {
-    "default": {
-        "ENGINE": os.getenv(f"POSTGRES_ENGINE"),
-        "NAME": os.getenv(f"POSTGRES_DB"),
-        "USER": os.getenv(f"POSTGRES_USER"),
-        "PASSWORD": os.getenv(f"POSTGRES_PASSWORD"),
-        "HOST": os.getenv(f"POSTGRES_HOST"),
-        "PORT": os.getenv(f"POSTGRES_PORT"),
-    },
-}
+if ENVIRONMENT == "production":
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=os.getenv("POSTGRES_DB_URL"),
+            conn_max_age=600,
+            ssl_require=True
+        )
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": os.getenv("POSTGRES_ENGINE"),
+            "NAME": os.getenv("POSTGRES_DB"),
+            "USER": os.getenv("POSTGRES_USER"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
+            "HOST": os.getenv("POSTGRES_HOST"),
+            "PORT": os.getenv("POSTGRES_PORT"),
+        }
+    }
+
 
 MICROSOFT_AUTH = {
     'TENANT_ID': os.getenv('O365_TENANT_ID'),
