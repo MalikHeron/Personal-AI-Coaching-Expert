@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Ensure host keys exist
+# Ensure host keys exist (in case image didn't have them generated)
 if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
   echo "Generating SSH host keys..."
   ssh-keygen -A
@@ -10,12 +10,9 @@ fi
 # Start SSH service
 service ssh start
 
-# Try running main entrypoint, fallback to Nginx if it fails
+# Chain to existing entrypoint logic
 if [ -x /entrypoint.sh ]; then
-  /entrypoint.sh || {
-    echo "Entrypoint failed with code $? — starting nginx for debug"
-    nginx -g "daemon off;"
-  }
+  exec /entrypoint.sh
 else
   echo "/entrypoint.sh not found or not executable; starting nginx as fallback"
   exec nginx -g "daemon off;"

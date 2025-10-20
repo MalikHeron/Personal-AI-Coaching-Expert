@@ -1,0 +1,34 @@
+# This is a minimal, secure sshd_config for container SSH access on port 2222
+Port 2222
+Protocol 2
+AddressFamily any
+ListenAddress 0.0.0.0
+
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+# Authentication
+PermitRootLogin yes
+PasswordAuthentication yes
+ChallengeResponseAuthentication no
+UsePAM yes
+
+# Disable DNS lookups to speed up logins
+UseDNS no
+
+# Logging
+SyslogFacility AUTH
+LogLevel INFO
+
+# Keep connections alive
+ClientAliveInterval 120
+ClientAliveCountMax 30
+
+# Other sane defaults
+PermitEmptyPasswords no
+X11Forwarding no
+AllowTcpForwarding yes
+GatewayPorts no
+AllowAgentForwarding yes
+Subsystem sftp /usr/lib/openssh/sftp-server

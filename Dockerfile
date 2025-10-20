@@ -60,19 +60,21 @@ COPY --from=backend-base /usr/local/bin /usr/local/bin
 COPY --from=frontend /usr/src/app/frontend /usr/src/app/frontend
 
 # Copy NGINX config
-# Remove any default NGINX site/configs to avoid default welcome page
-RUN rm -f /etc/nginx/sites-enabled/default \
-    && rm -f /etc/nginx/conf.d/*
+RUN rm /etc/nginx/sites-enabled/default
 COPY nginx/app-prod.conf /etc/nginx/conf.d/default.conf
 
-# Copy the entrypoint script into the image root
+# --- SSH setup ---
+# Copy sshd configuration and set root password required for SSH
+COPY sshd_config /etc/ssh/
+RUN mkdir -p /var/run/sshd && echo "root:Docker!" | chpasswd
+
+# Copy crontab and entrypoint
 COPY entrypoint.sh /entrypoint.sh
+COPY init_container.sh /opt/startup/init_container.sh
+RUN chmod +x /entrypoint.sh /opt/startup/init_container.sh
 
-# Ensure Unix line endings and executable bit (handles Windows checkouts)
-RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+# Expose SSH and HTTP ports
+EXPOSE 2222 80
 
-# Expose HTTP port
-EXPOSE 80 8000
-
-# Start the app via the entrypoint (which also launches NGINX)
-ENTRYPOINT ["/entrypoint.sh"]
+# Use init script that starts SSH then runs the app entrypoint
+ENTRYPOINT ["/opt/startup/init_container.sh"]

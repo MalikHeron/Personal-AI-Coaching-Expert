@@ -1,0 +1,72 @@
+# === Python / Django ===
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+*.log
+*.pot
+*.mo
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Django static & media (will be collected inside container instead)
+backend/staticfiles/
+backend/static_root/
+backend/media/
+
+# === Node / React ===
+frontend/node_modules/
+frontend/build/
+frontend/.cache/
+frontend/dist/
+
+# === OS / Editor ===
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# === Docker ===
+.dockerignore
+Dockerfile
+
+# === Git ===
+.git/
+.gitignore
+
+# === Environment / Secrets ===
+*.env
+.env.*
+!.env.example   # keep template env file
+!frontend/.env
+secrets.json
+
+# Logs
+logs/
+backend/logs/
+*.pid
+
+# Coverage
+coverage/
+*.coverage
+coverage.xml
+
+# Misc caches
+.cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignore all Django migration files except initial and __init__.py
+# **/migrations/*.py
+# **/migrations/*.pyc
+# !**/accounts/migrations/*
+# !**/migrations/0001_initial.py
+# !**/migrations/0002_initial.py
+# !**/migrations/__init__.py

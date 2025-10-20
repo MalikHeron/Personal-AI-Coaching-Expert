@@ -63,7 +63,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 APPEND_SLASH = True
 
 # Email Configuration
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.getenv("EMAIL_HOST")
 EMAIL_PORT = os.getenv("EMAIL_PORT")
 EMAIL_USE_TLS = False
@@ -174,7 +174,8 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'backend.wsgi.application'
+# Explicit ASGI application reference (useful for tooling / future Channels integration)
+ASGI_APPLICATION = 'backend.asgi.application'
 
 
 # Database
@@ -216,8 +217,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 LOGIN_URL = 'login'
 LOGOUT_URL = 'logout'
-LOGIN_REDIRECT_URL = 'http://localhost/oauth/callback'  # frontend callback URL
-LOGOUT_REDIRECT_URL = 'http://localhost/'  # frontend home URL
+LOGIN_REDIRECT_URL = os.getenv('O365_REDIRECT_URI')  # frontend callback URL
+LOGOUT_REDIRECT_URL = os.getenv('FRONTEND_URL')  # frontend home URL
 
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_EMAIL_VERIFICATION = 'none'  # or 'optional' / 'mandatory'
@@ -226,9 +227,11 @@ ACCOUNT_USER_MODEL_EMAIL_FIELD = 'email'
 
 # Align django-allauth core flags with signup policy
 # Note: dj-rest-auth now prefers SIGNUP_FIELDS for required flags
-ACCOUNT_USERNAME_REQUIRED = True   # set to False if you want email-only, no username
+# set to False if you want email-only, no username
+ACCOUNT_USERNAME_REQUIRED = True
 ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_AUTHENTICATION_METHOD = 'email'  # preferred setting over non-standard ACCOUNT_LOGIN_METHODS
+# preferred setting over non-standard ACCOUNT_LOGIN_METHODS
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
 
 # dj-rest-auth: use SIGNUP_FIELDS instead of deprecated USERNAME_REQUIRED/EMAIL_REQUIRED
 # This controls which fields are required during registration.
