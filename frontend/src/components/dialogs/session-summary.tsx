@@ -21,14 +21,6 @@ function formatDuration(seconds: number): string {
 }
 
 export default function SessionSummaryDialog({ open, onClose, workoutName, totalReps, durationSeconds, formScore, setsCompleted, exercisesCompleted }: SessionSummaryProps) {
-  console.log(`🎯 ===== SESSION SUMMARY DIALOG =====`);
-  console.log(`  Open: ${open}`);
-  console.log(`  Workout Name: ${workoutName}`);
-  console.log(`  Total Reps: ${totalReps}`);
-  console.log(`  Sets Completed: ${setsCompleted}`);
-  console.log(`  Exercises Completed: ${exercisesCompleted}`);
-  console.log(`  Form Score: ${formScore}%`);
-  console.log(`  Duration: ${durationSeconds}s`);
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>

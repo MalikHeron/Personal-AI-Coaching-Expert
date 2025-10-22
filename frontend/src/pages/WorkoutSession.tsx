@@ -9,9 +9,9 @@ import { Spinner } from "@/components/ui/spinner";
 import useExerciseTracker from "@/hooks/use-exercise-tracker";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-// import { DashboardService } from '../services/DashboardService';
 import { SessionService, SetLogInput } from "../services/SessionService";
 import SessionSummaryDialog from "@/components/dialogs/session-summary";
+import { toast } from "sonner";
 
 type SessionNavState = {
   workouts?: Workout[];
@@ -19,7 +19,6 @@ type SessionNavState = {
   workoutPlanId?: number;
   planExercises?: { id: number; name: string }[];
 } | null;
-import { toast } from "sonner";
 
 type Workout = {
   name: string;
@@ -37,10 +36,13 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
   const workouts = state?.workouts || defaultWorkouts;
   const workoutName = state?.workoutName || "Upper Body Strength";
   const workoutPlanId = state?.workoutPlanId ?? null;
-  const planExercises = state?.planExercises ?? [];
+  const planExercises = useMemo(() => state?.planExercises ?? [], [state?.planExercises]);
 
-  // Debug logging
-  console.log(`🏋️ WorkoutSession - Workouts count: ${workouts?.length || 0}, Plan exercises: ${planExercises?.length || 0}`);
+  useMemo(() => {
+    // Debug logging
+    console.log(`🏋️ WorkoutSession - Workouts count: ${workouts?.length || 0}, Plan exercises: ${planExercises?.length || 0}`);
+  }, [workouts, planExercises]);
+
   // State variables
   const navigate = useNavigate();
   const [tick, setTick] = useState(0);
@@ -65,6 +67,8 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
   const [workoutDuration, setWorkoutDuration] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState("--");
   const [accumulatedElapsed, setAccumulatedElapsed] = useState(0);
+  const workoutDurationRef = useRef<number | null>(workoutDuration);
+  const accumulatedElapsedRef = useRef<number>(accumulatedElapsed);
   const [setStartTime, setSetStartTime] = useState<number | null>(null);
   const [setDuration, setSetDuration] = useState("--");
   const [accumulatedSetElapsed, setAccumulatedSetElapsed] = useState(0);
@@ -74,6 +78,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
 
   // API-related state
   const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
+  const currentSessionIdRef = useRef<number | null>(currentSessionId);
   const sessionStartTimeRef = useRef<string | null>(null);
   const [setLogs, setSetLogs] = useState<SetLogInput[]>([]);
   const setLogsRef = useRef<SetLogInput[]>([]);
@@ -84,11 +89,16 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
   const overallAccuracyRef = useRef(0);
   const totalRepsAccumulator = useRef(0); // Accumulate total reps across all sets
   const totalSetsAccumulator = useRef(0); // Accumulate total sets completed
+  const exercisesCompletedSetRef = useRef<Set<number | string>>(new Set()); // track unique exercises completed
 
   // Debug summaryOpen state changes
   useEffect(() => {
     console.log(`📋 summaryOpen changed to: ${summaryOpen}`);
   }, [summaryOpen]);
+
+  useEffect(() => {
+    currentSessionIdRef.current = currentSessionId;
+  }, [currentSessionId]);
 
   // Freeze summary stats at finish time so UI shows exact tracked values
   const [summarySetsCompleted, setSummarySetsCompleted] = useState(0);
@@ -98,13 +108,19 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
   const [summaryFormScore, setSummaryFormScore] = useState(0);
 
   // Derived values
-  const currentWorkout: Workout = workouts[currentWorkoutIndex] || {
-    name: "Bicep Curl",
-    reps: 5,
-    sets: 2,
-    restTimer: 3,
-    difficulty: "Easy"
-  };
+  const currentWorkout: Workout = useMemo(() => (
+    workouts[currentWorkoutIndex] || {
+      name: "Bicep Curl",
+      reps: 5,
+      sets: 2,
+      restTimer: 3,
+      difficulty: "Easy"
+    }
+  ), [workouts, currentWorkoutIndex]);
+
+  // Keep a ref of the currentWorkout so callbacks (which may be stable)
+  // can reference the latest workout without stale closures.
+  const currentWorkoutRef = useRef<Workout>(currentWorkout);
 
   // Hooks
   const { videoRef, isCameraOn: cameraActive, error: cameraError, isLoading, stopCamera } = useCamera();
@@ -158,6 +174,11 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
     overallAccuracyRef.current = overallAccuracy;
   }, [trackedReps, overallAccuracy]);
 
+  // Keep currentWorkoutRef in sync so callbacks can rely on latest workout
+  useEffect(() => {
+    currentWorkoutRef.current = currentWorkout;
+  }, [currentWorkout]);
+
   useEffect(() => {
     if (setStartTime) {
       setSetDuration(new Date(Date.now() - setStartTime).toISOString().substr(14, 5));
@@ -196,6 +217,15 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
       return () => clearInterval(interval);
     }
   }, [isWorkoutActive]);
+
+  // keep refs in sync with corresponding state so callbacks can remain stable
+  useEffect(() => {
+    workoutDurationRef.current = workoutDuration;
+  }, [workoutDuration]);
+
+  useEffect(() => {
+    accumulatedElapsedRef.current = accumulatedElapsed;
+  }, [accumulatedElapsed]);
 
   useEffect(() => {
     if (isWorkoutActive) {
@@ -238,7 +268,14 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
 
     // Use ref to get ACTUAL current rep value
     const newRep = currentRepRef.current + 1;
-    console.log("✓ Rep completed! newRep:", newRep, "Target:", currentWorkout.reps);
+    const cw = currentWorkoutRef.current;
+    console.log("✓ Rep completed! newRep:", newRep, "Target:", cw.reps, {
+      workoutName: cw.name,
+      currentWorkoutIndex,
+      currentSet: currentSetRef.current,
+      isBetweenSets,
+      isWorkoutActive,
+    });
 
     // Update state AND ref
     setCurrentRep(newRep);
@@ -250,8 +287,8 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
       const currentSetValue = currentSetRef.current;
       console.log("✓ SET COMPLETE! Current set:", currentSetValue, "Total sets:", currentWorkout.sets);
 
-      // Accumulate total reps and sets before resetting
-      totalRepsAccumulator.current += currentWorkout.reps;
+  // Accumulate total reps and sets before resetting
+  totalRepsAccumulator.current += cw.reps;
       totalSetsAccumulator.current += 1;
       console.log(`📊 ACCUMULATOR UPDATE - Total reps: ${totalRepsAccumulator.current}, Total sets: ${totalSetsAccumulator.current}`);
 
@@ -265,13 +302,19 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
 
       // Record a set log for backend (use current workout name to find exercise_id)
       try {
-        const matched = planExercises?.find((ex) => ex?.name === currentWorkout.name);
+  const matched = planExercises?.find((ex) => ex?.name === cw.name);
+        // Record exercise as completed (use id if available, otherwise name)
+        if (matched?.id) {
+          exercisesCompletedSetRef.current.add(matched.id);
+        } else {
+          exercisesCompletedSetRef.current.add(currentWorkout.name);
+        }
         if (matched?.id && currentSessionId) {
           const durationSeconds = Math.floor(accumulatedSetElapsed / 1000);
           const logEntry: SetLogInput = {
             exercise_id: matched.id,
             set_number: currentSetValue,
-            reps_completed: currentWorkout.reps,
+            reps_completed: cw.reps,
             duration_seconds: durationSeconds > 0 ? durationSeconds : null,
             score: formScore,
           };
@@ -282,7 +325,8 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
       }
 
       // Check if ALL sets are done
-      if (currentSetValue >= currentWorkout.sets) {
+      console.log('SET COMPLETION CHECK', { currentSetValue, totalSets: cw.sets });
+      if (currentSetValue >= cw.sets) {
         console.log("✓✓✓ ALL SETS DONE! Moving to next workout.");
         markWorkoutEnd();
         setTimeout(() => {
@@ -295,7 +339,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
         setCurrentSet(nextSet);
         currentSetRef.current = nextSet;
         setIsBetweenSets(true);
-        setBetweenSetTimer(currentWorkout.restTimer || 30);
+        setBetweenSetTimer(cw.restTimer || 30);
       }
     }
   }
@@ -328,25 +372,35 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
 
     // Calculate duration using the ACTUAL workout timer
     // workoutDuration tracks when workout is active, accumulatedElapsed tracks paused time
-    const currentRunningTime = workoutDuration !== null ? (Date.now() - workoutDuration) : 0;
-    const totalDurationMs = accumulatedElapsed + currentRunningTime;
+    const currentRunningTime = workoutDurationRef.current !== null ? (Date.now() - (workoutDurationRef.current as number)) : 0;
+    const totalDurationMs = (accumulatedElapsedRef.current || 0) + currentRunningTime;
     const totalSeconds = Math.floor(totalDurationMs / 1000);
     setSummaryDurationSeconds(totalSeconds);
-    console.log(`⏱️ Duration calc - Accumulated: ${accumulatedElapsed}ms, Current: ${currentRunningTime}ms, Total: ${totalSeconds}s`);
+    console.log(`⏱️ Duration calc - Accumulated: ${accumulatedElapsedRef.current}ms, Current: ${currentRunningTime}ms, Total: ${totalSeconds}s`);
 
     // Calculate exercises completed from set logs
     const logsToSend = setLogsRef.current;
-    const uniqueExercises = new Set(logsToSend.map(l => l.exercise_id)).size;
-    setSummaryExercisesCompleted(uniqueExercises);
+    // Prefer our tracked set of completed exercises; fall back to distinct exercise_id from logs
+    const completedFromRef = exercisesCompletedSetRef.current.size;
+    let exercisesCount = 0;
+    if (completedFromRef > 0) {
+      exercisesCount = completedFromRef;
+      setSummaryExercisesCompleted(completedFromRef);
+    } else {
+      const uniqueExercises = new Set(logsToSend.map(l => l.exercise_id).filter(Boolean)).size;
+      exercisesCount = uniqueExercises;
+      setSummaryExercisesCompleted(uniqueExercises);
+    }
 
-    console.log(`📊 Summary Captured - Duration: ${totalSeconds}s, Exercises: ${uniqueExercises}`);
+    console.log(`📊 Summary Captured - Duration: ${totalSeconds}s, Exercises: ${exercisesCount}`);
 
     // Persist logs and session summary
-    if (currentSessionId && sessionStartTimeRef.current) {
+    const sessionIdToUse = currentSessionIdRef.current;
+    if (sessionIdToUse && sessionStartTimeRef.current) {
       try {
         // 1) Send accumulated set logs if any
         if (logsToSend.length > 0) {
-          await SessionService.createSetLogs(currentSessionId, logsToSend);
+          await SessionService.createSetLogs(sessionIdToUse, logsToSend);
           console.log(`✓ Posted ${logsToSend.length} set logs`);
         }
 
@@ -358,23 +412,22 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
 
         console.log(`📊 Sending to backend - Duration: ${durationStr}, Score: ${currentAccuracy}%`);
 
-        await SessionService.patchSession(currentSessionId, {
+        await SessionService.patchSession(sessionIdToUse as number, {
           duration: durationStr,
           score: currentAccuracy,
           completed: true,
         });
         console.log("✓ Workout session updated in backend");
 
-        // Show summary dialog
+        // Show summary dialog (log the captured values directly)
         console.log("🎉 Opening summary dialog with stats:", {
-          reps: summaryTotalReps,
-          formScore: summaryFormScore,
+          reps: currentReps,
+          formScore: currentAccuracy,
           sets: logsToSend.length
         });
       } catch (error) {
         console.error("Failed to store session data:", error);
       }
-
     }
 
     // ALWAYS show summary dialog - move before any other state updates
@@ -402,11 +455,21 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
         canvasRef.current.height = 0;
       }
     }, 1000);
-  }, [stopTracking, markWorkoutEnd, canvasRef, currentSessionId, stopCamera]);
+  }, [stopTracking, markWorkoutEnd, stopCamera, canvasRef]);
 
   const moveToNextWorkout = useCallback(() => {
     const nextIndex = currentWorkoutIndex + 1;
     console.log(`moveToNextWorkout() called. currentIndex: ${currentWorkoutIndex}, nextIndex: ${nextIndex}, totalWorkouts: ${workouts.length}`);
+
+    // IMPORTANT: ensure we stop the current tracker's MediaPipe camera before
+    // switching to the next workout. Not doing so can leave multiple Camera
+    // instances running which leads to extreme CPU usage and video lag.
+    try {
+      stopTracking();
+    } catch (e) {
+      // swallow - stopTracking may be a no-op in some states
+      console.warn('stopTracking() failed or was no-op', e);
+    }
 
     if (nextIndex < workouts.length) {
       console.log(`  Moving to workout ${nextIndex}: ${workouts[nextIndex].name}`);
@@ -422,7 +485,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
       console.log(`  All workouts complete! Calling finishWorkout()`);
       finishWorkout();
     }
-  }, [currentWorkoutIndex, workouts, resetCounter, finishWorkout]);
+  }, [currentWorkoutIndex, workouts, resetCounter, finishWorkout, stopTracking]);
 
   useEffect(() => {
     if (isWorkoutActive) {
@@ -432,7 +495,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
       // Only set workoutDuration if it's null (i.e., workout just started)
       setWorkoutDuration((prev) => prev === null ? Date.now() : prev);
     }
-  }, [finishWorkout, isWorkoutActive, startTracking, started]);
+  }, [isWorkoutActive, startTracking, started]);
 
   // Create workout session when workout starts
   useEffect(() => {

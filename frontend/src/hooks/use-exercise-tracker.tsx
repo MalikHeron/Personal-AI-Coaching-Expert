@@ -65,7 +65,7 @@ export function useExerciseTracker(
   const bicepCurlTracker = useBicepCurlTracker(
     videoRef,
     exerciseType === 'bicep-curl' ? isActive : false,
-    exerciseType === 'bicep-curl' ? onRepComplete : undefined,
+    onRepComplete,
     arm
   );
 
@@ -73,7 +73,7 @@ export function useExerciseTracker(
   const squatTracker = useSquatTracker(
     videoRef,
     exerciseType === 'squat' ? isActive : false,
-    exerciseType === 'squat' ? onRepComplete : undefined,
+    onRepComplete,
     'right' // default to right leg
   );
 

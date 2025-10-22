@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
+from datetime import timedelta
 import logging
 import dj_database_url
 import os
@@ -126,19 +127,15 @@ INSTALLED_APPS = [
     "identity",
     "rest_framework",
     'django.contrib.sites',
-    # 'dj_rest_auth',
-    # 'dj_rest_auth.registration',
-    # 'rest_framework.authtoken',
-    'allauth',
-    'allauth.account',
-    'allauth.socialaccount',
-    'allauth.socialaccount.providers.google',
-    'allauth.socialaccount.providers.microsoft',
+    # Use SimpleJWT for token auth and social-auth-app-django for social providers
+    'social_django',
+    'rest_framework.authtoken',
 ]
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
-    'allauth.account.middleware.AccountMiddleware',
+    # social_django middleware (optional for pipeline/session support)
+    'social_django.middleware.SocialAuthExceptionMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -150,10 +147,20 @@ MIDDLEWARE = [
     'accounts.middleware.CurrentUserMiddleware',
 ]
 
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ),
+}
+
+# Simple JWT configuration
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=int(os.getenv('JWT_ACCESS_MINUTES', '15'))),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.getenv('JWT_REFRESH_DAYS', '7'))),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 ROOT_URLCONF = 'backend.urls'
@@ -176,7 +183,6 @@ TEMPLATES = [
 
 # Explicit ASGI application reference (useful for tooling / future Channels integration)
 ASGI_APPLICATION = 'backend.asgi.application'
-
 
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
@@ -202,47 +208,66 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 AUTHENTICATION_BACKENDS = (
+    'social_core.backends.google.GoogleOAuth2',
+    'social_core.backends.microsoft.MicrosoftOAuth2',
     'django.contrib.auth.backends.ModelBackend',
-    'allauth.account.auth_backends.AuthenticationBackend',
 )
 
-# Add SITE_ID for django-allauth
+SOCIAL_AUTH_AUTHENTICATION_BACKENDS = {
+    'social_core.backends.google.GoogleOAuth2',
+    'social_core.backends.microsoft.MicrosoftOAuth2',
+}
+
+# social-auth and site config
 SITE_ID = 1
-SOCIALACCOUNT_LOGIN_ON_GET = True
 DEFAULT_FROM_EMAIL = 'no-reply@localhost'
-ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
-SOCIALACCOUNT_QUERY_EMAIL = True
-SOCIALACCOUNT_AUTO_SIGNUP = True
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+# URLs frontend should use after login/logout flows
 LOGIN_URL = 'login'
 LOGOUT_URL = 'logout'
-LOGIN_REDIRECT_URL = os.getenv('O365_REDIRECT_URI')  # frontend callback URL
-LOGOUT_REDIRECT_URL = os.getenv('FRONTEND_URL')  # frontend home URL
+# Frontend URL (may include trailing slash) - default to root
+_FRONTEND_BASE = os.getenv('FRONTEND_URL', '/').rstrip('/')
+# After social login we want to send users to the frontend OAuth callback route
+LOGIN_REDIRECT_URL = f"{_FRONTEND_BASE}/oauth/callback"
+# On logout send users back to the frontend home URL
+LOGOUT_REDIRECT_URL = _FRONTEND_BASE or '/'  # frontend home URL
 
-ACCOUNT_LOGIN_METHODS = {'email'}
-ACCOUNT_EMAIL_VERIFICATION = 'none'  # or 'optional' / 'mandatory'
-ACCOUNT_USER_MODEL_USERNAME_FIELD = 'username'  # default, but make explicit
-ACCOUNT_USER_MODEL_EMAIL_FIELD = 'email'
+# social-auth-app-django settings (Google & Microsoft)
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.getenv('GOOGLE_CLIENT_ID')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 
-# Align django-allauth core flags with signup policy
-# Note: dj-rest-auth now prefers SIGNUP_FIELDS for required flags
-# set to False if you want email-only, no username
-ACCOUNT_USERNAME_REQUIRED = True
-ACCOUNT_EMAIL_REQUIRED = True
-# preferred setting over non-standard ACCOUNT_LOGIN_METHODS
-ACCOUNT_AUTHENTICATION_METHOD = 'email'
+# Microsoft identity platform settings (use OAuth2)
+SOCIAL_AUTH_MICROSOFT_GRAPH_KEY = os.getenv('O365_CLIENT_ID')
+SOCIAL_AUTH_MICROSOFT_GRAPH_SECRET = os.getenv('O365_CLIENT_SECRET')
 
-# dj-rest-auth: use SIGNUP_FIELDS instead of deprecated USERNAME_REQUIRED/EMAIL_REQUIRED
-# This controls which fields are required during registration.
-REST_AUTH = {
-    "SIGNUP_FIELDS": {
-        "username": {"required": True},
-        "email": {"required": True},
-        "password1": {"required": True},
-        "password2": {"required": True},
-    }
-}
+# Optional: include email scope to retrieve email/profile
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile']
+SOCIAL_AUTH_MICROSOFT_GRAPH_SCOPE = ['User.Read']
+
+# Ensure pipeline creates users and associates details
+SOCIAL_AUTH_PIPELINE = (
+    'social_core.pipeline.social_auth.social_details',
+    'social_core.pipeline.social_auth.social_uid',
+    'social_core.pipeline.social_auth.auth_allowed',
+    'social_core.pipeline.social_auth.social_user',
+    # Custom pipeline to ensure association with existing users by email
+    'accounts.pipeline.associate_existing_user_by_email',
+    # Defensive create-or-get: either return existing user or create without duplicating
+    'accounts.pipeline.create_or_get_user',
+    # Try to associate by email as an additional safeguard
+    'social_core.pipeline.social_auth.associate_by_email',
+    'social_core.pipeline.user.get_username',
+    'social_core.pipeline.user.create_user',
+    'social_core.pipeline.social_auth.associate_user',
+    'social_core.pipeline.social_auth.load_extra_data',
+    'social_core.pipeline.user.user_details',
+)
+
+# Try to associate social accounts with existing users by email instead of creating duplicates
+SOCIAL_AUTH_ASSOCIATE_BY_EMAIL = True
+# Use full email as username when creating users (helps avoid username collisions)
+SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = True
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/

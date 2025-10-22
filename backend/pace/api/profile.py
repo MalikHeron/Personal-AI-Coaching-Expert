@@ -15,7 +15,7 @@ class ProfileAPIView(APIView):
         try:
             profile = FitnessProfile.objects.get(user=request.user)
         except FitnessProfile.DoesNotExist:
-            return Response({"detail": "Fitness profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Fitness profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = FitnessProfileSerializer(profile)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -31,11 +31,11 @@ class UpdateProfileAPIView(APIView):
         try:
             profile = FitnessProfile.objects.get(user=request.user)
         except FitnessProfile.DoesNotExist:
-            return Response({"detail": "Fitness profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Fitness profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = FitnessProfileSerializer(profile, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
  

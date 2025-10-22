@@ -13,8 +13,6 @@ import {
 } from './../utils';
 import useAudio from './use-audio';
 
-const {play}= useAudio();
-
 type ArmSide = 'right' | 'left' | 'both';
 
 /**
@@ -53,11 +51,15 @@ export function useBicepCurlTracker(
   const repTracker = useRepTracker();
   const workoutTimer = useWorkoutTimer();
 
+  // Audio helpers (must be called inside hook body)
+  const { play } = useAudio();
+
   /**
    * Process bicep curl for one arm
    */
+  type Landmark = { x: number; y: number; z?: number; visibility?: number };
   const processBicepCurl = useCallback(
-    (landmarks: any[]) => {
+    (landmarks: Landmark[]) => {
       const shoulderIndex = arm === 'right' ? 12 : 11;
       const elbowIndex = arm === 'right' ? 14 : 13;
       const wristIndex = arm === 'right' ? 16 : 15;
@@ -186,7 +188,7 @@ export function useBicepCurlTracker(
         feedbackManager.setFeedback(newFeedback.trim());
       }
     },
-    [arm, feedbackManager, repTracker, workoutTimer, onRepComplete]
+    [arm, feedbackManager, repTracker, workoutTimer, onRepComplete, play]
   );
 
   /**
@@ -194,8 +196,13 @@ export function useBicepCurlTracker(
    */
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
+  type PoseResults = {
+    image?: HTMLVideoElement | HTMLImageElement | ImageBitmap | HTMLCanvasElement | null;
+    poseLandmarks?: Landmark[] | undefined;
+  };
+
   const onPoseResults = useCallback(
-    (results: any) => {
+    (results: PoseResults) => {
       if (!canvasRef.current) return;
       const canvas = canvasRef.current;
 
@@ -210,31 +217,36 @@ export function useBicepCurlTracker(
       const ctx = ctxRef.current;
       if (!ctx) return;
 
-      // Setup and clear canvas
-      setupCanvas(canvas, ctx, results.image);
+  // Setup and clear canvas (results.image may be undefined for some buffers)
+  setupCanvas(canvas, ctx, results.image ?? null);
 
-      // Draw pose
+      // Draw pose landmarks only when necessary. During rest or when
+      // tracking is paused, keep drawing minimal (just the video frame)
+      // to avoid heavy CPU work that can cause video lag.
       if (results.poseLandmarks) {
-        drawPoseLandmarks(ctx, canvas, results.poseLandmarks);
-
-        // Draw elbow angle
-        const shoulderIdx = arm === 'right' ? 12 : 11;
-        const elbowIdx = arm === 'right' ? 14 : 13;
-        const wristIdx = arm === 'right' ? 16 : 15;
-
-        drawAngleBadge(
-          ctx,
-          canvas,
-          results.poseLandmarks,
-          shoulderIdx,
-          elbowIdx,
-          wristIdx,
-          arm === 'right' ? '#00CFFF' : '#FFB300'
-        );
-
-        // Process tracking if active
         if (isActiveRef.current) {
+          // Active tracking: draw landmarks and badges and process reps
+          drawPoseLandmarks(ctx, canvas, results.poseLandmarks);
+
+          const shoulderIdx = arm === 'right' ? 12 : 11;
+          const elbowIdx = arm === 'right' ? 14 : 13;
+          const wristIdx = arm === 'right' ? 16 : 15;
+
+          drawAngleBadge(
+            ctx,
+            canvas,
+            results.poseLandmarks,
+            shoulderIdx,
+            elbowIdx,
+            wristIdx,
+            arm === 'right' ? '#00CFFF' : '#FFB300'
+          );
+
           processBicepCurl(results.poseLandmarks);
+        } else {
+          // Inactive: optionally draw very lightweight markers (e.g., a few keypoints)
+          // but avoid drawConnectors/drawLandmarks to reduce CPU. We'll draw nothing
+          // here so the canvas shows only the video frame from setupCanvas.
         }
       }
 
@@ -247,6 +259,7 @@ export function useBicepCurlTracker(
   const { startTracking, stopTracking } = useMediaPipe({
     videoRef,
     onPoseResults,
+    processingRef: isActiveRef,
   });
 
   // Reset function

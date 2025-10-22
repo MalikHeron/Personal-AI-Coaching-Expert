@@ -37,6 +37,16 @@ export function Onboarding() {
   const [personalGoals, setPersonalGoals] = useState<string[]>([]);
   const [isFormValid, setIsFormValid] = useState(false);
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const user = new AuthService().fetchUser();
+
+    if (!user) {
+      toast.error("You must be logged in to complete onboarding");
+      navigate('/');
+    }
+  }, [navigate]);
 
   const personalGoalsOptions = [
     { value: "lose_weight", label: "Weight Loss" },
@@ -71,26 +81,28 @@ export function Onboarding() {
     console.log("Onboarding form data:", data)
 
     try {
-      const [success, message] = await new WorkoutService().updateProfile(data);
-
-      if (success) {
-        const success = await new AuthService().markAsCompleted();
-
-        if (success) {
-          toast.success("Onboarding completed successfully!");
-          navigate('/home');
-        } else {
-          toast.error("Failed to complete onboarding");
+      setIsLoading(true);
+      await toast.promise(new WorkoutService().updateProfile(data),
+        {
+          loading: "Updating profile...",
+          success: ([success, message]) => {
+            if (success) {
+              navigate('/home');
+              return "Onboarding completed successfully!";
+            } else {
+              throw new Error("Failed to complete onboarding: " + (message ?? "Unknown error"));
+            }
+          },
+          error: (err) => (err instanceof Error ? err.message : "Failed to update profile"),
         }
-        // toast.success("Profile updated successfully!");
-      } else {
-        toast.error("Failed to update profile: " + message);
-      }
+      );
     } catch (error) {
       if (error instanceof Error) {
         console.error("Error updating profile:", error.message);
       }
       toast.error("Failed to update profile");
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -219,7 +231,7 @@ export function Onboarding() {
                     </FieldGroup>
                   </FieldSet>
                   <Field orientation="horizontal" className="w-full justify-end">
-                    <Button type="submit" disabled={!isFormValid}>Submit</Button>
+                    <Button type="submit" disabled={!isFormValid || isLoading}>Submit</Button>
                     <Button variant="outline" type="button" onClick={() => navigate('/')}>
                       Cancel
                     </Button>

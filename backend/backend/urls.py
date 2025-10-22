@@ -16,16 +16,18 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # Expose social auth endpoints at both /api/social/ and /social/ to
+    # accommodate different frontend API base paths (frontend may call /social/...)
+    path('api/social/', include('social_django.urls', namespace='social')),
     path('api/accounts/', include(('accounts.urls', 'accounts'), namespace='accounts')),
-    path('api/accounts/', include('allauth.urls')),
     path('api/pace/', include(('pace.urls', 'pace'), namespace='pace')),
 ]
-
 
 
 # Serve media and static files in development

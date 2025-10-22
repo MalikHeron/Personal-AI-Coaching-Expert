@@ -1,18 +1,12 @@
 import { useEffect, useRef } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { DelayedComponent } from "./ui/delayed-component";
 import { Spinner } from "./ui/spinner";
 import { Label } from "./ui/label";
 import Footer from "./footer";
-import { User } from "@/types/user";
-
-
-// Set API_URL based on environment (development or production)
-const API_URL = import.meta.env.DEV
-  ? import.meta.env.VITE_API_SERVER_DEV
-  : import.meta.env.VITE_API_SERVER;
-
+import { AuthService } from "@/services/AuthService";
+import { toast } from "sonner";
+import { useUser } from "@/hooks/use-user";
 
 /**
  * Handles the OAuth callback flow after authentication.
@@ -28,6 +22,7 @@ const API_URL = import.meta.env.DEV
  * @returns {JSX.Element} The OAuth callback UI with loading indicator.
  */
 export default function OAuthCallback() {
+  const { user, setUser } = useUser();
   const navigate = useNavigate();
   const hasRun = useRef(false); // 💡 Ref to track if effect already ran
 
@@ -37,28 +32,43 @@ export default function OAuthCallback() {
 
     const handleOAuthCallback = async () => {
       try {
-        // Send the code to the backend to exchange for token/user info
-        const response = await axios.get(`${API_URL}/accounts/user-info/`, {
-          withCredentials: true, // Send cookies with the request
-        });
+        // Prefer `user` from context (social login like Google). If not present,
+        // fetch the user from the API (local login path) and persist it.
+        let currentUser = user;
+        if (!currentUser) {
+          // Try to fetch server-validated user (ensures session/cookie is valid)
+          currentUser = await new AuthService().fetchUserFromServer();
+          // If server fetch fails, fall back to stored user
+          if (!currentUser) currentUser = await new AuthService().fetchUser();
+          if (!currentUser) {
+            toast.error("Login failed", {
+              description: "Failed to retrieve user information. Please try logging in again."
+            });
+            navigate("/login", { replace: true });
+            return;
+          }
 
-        // console.log("OAuth callback response:", response.data);
+          // persist fetched user for page reloads (sessionStorage preferred)
+          try { sessionStorage.setItem('user', JSON.stringify(currentUser)); } catch { /* ignore storage errors */ }
 
-        // Store user info in sessionStorage if present
-        if (response.data) {
-          sessionStorage.setItem("user", JSON.stringify(response.data));
+          // update context so the rest of the app sees the logged-in user
+          try { setUser(currentUser); } catch { /* ignore if unavailable */ }
         }
 
-        const user = response.data as User;
-        if (user && user.onboarding_completed === false) {
-          // Redirect to /onboarding if onboarding is not complete
-          navigate("/onboarding", { replace: true });
-          return;
-        } else {
-          // Proceed to home if onboarding is complete
-          navigate("/home", { replace: true });
+        // Unified onboarding redirect logic
+        const onboardingIncomplete = (u: unknown) => {
+          if (!u || typeof u !== 'object') return true;
+          // runtime check for onboarding_completed
+          const val = (u as { onboarding_completed?: unknown }).onboarding_completed;
+          return val === false || val === null || val === undefined;
+        };
+
+        if (onboardingIncomplete(currentUser)) {
+          navigate('/onboarding', { replace: true });
           return;
         }
+
+        navigate('/home', { replace: true });
       } catch (error) {
         // Log any errors that occur during the OAuth callback
         console.error("OAuth callback error:", error);
@@ -66,7 +76,7 @@ export default function OAuthCallback() {
     };
 
     handleOAuthCallback();
-  }, [navigate]);
+  }, [navigate, user, setUser]);
 
   return (
     <DelayedComponent

@@ -10,10 +10,18 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshUser = useCallback(async () => {
     const authService = new AuthService();
 
-    const sessionUser = await authService.fetchUser();
+    // Prefer server-validated user (ensures cookie/session is valid). If that fails,
+    // fall back to stored user in local/session storage for a quicker UI hydrate.
+    let sessionUser = await authService.fetchUserFromServer();
+    console.log("Using server-fetched user for hydration:", sessionUser);
+    if (!sessionUser) {
+      sessionUser = await authService.fetchUser();
+      console.log("Using stored user for hydration:", sessionUser);
+    }
 
     if (sessionUser) {
       setUser({ ...sessionUser });
+      console.log("User successfully hydrated:", sessionUser);
     } else {
       setUser(undefined);
     }

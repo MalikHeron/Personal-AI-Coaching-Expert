@@ -1,16 +1,4 @@
-/**
- * Re-export audio utilities as a simple object
- * This bypasses React Compiler issues by not using any React hooks
- */
-export {
-  playAudio,
-  stopAudio,
-  setAudioVolume,
-  getAudioVolume,
-  isAudioPlaying,
-  audioPlayer,
-  type AudioFeedbackType
-} from '@/utils/audioFeedback';
+import type { AudioFeedbackType } from '@/utils/audioFeedback';
 
 /**
  * Simple audio utilities object for use in trackers
@@ -25,7 +13,7 @@ export {
  */
 export function useAudio() {
   return {
-    play: async (feedbackType: any) => {
+    play: async (feedbackType: AudioFeedbackType) => {
       const { playAudio } = await import('@/utils/audioFeedback');
       return playAudio(feedbackType);
     },

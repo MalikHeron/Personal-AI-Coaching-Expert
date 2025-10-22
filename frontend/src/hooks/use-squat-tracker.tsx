@@ -13,7 +13,6 @@ import {
 } from './../utils';
 import useAudio from './use-audio';
 type LegSide = 'right' | 'left' | 'both';
-const {play}= useAudio();
 
 /**
  * Streamlined squat tracker using modular utilities
@@ -51,12 +50,15 @@ export function useSquatTracker(
   const feedbackManager = useFeedbackThrottle(setFeedback);
   const repTracker = useRepTracker();
   const workoutTimer = useWorkoutTimer();
+  const { play } = useAudio();
 
   /**
    * Process squat for one leg
    */
+  type Landmark = { x: number; y: number; z?: number; visibility?: number };
+
   const processSquat = useCallback(
-    (landmarks: any[]) => {
+    (landmarks: Landmark[]) => {
       const hipIndex = leg === 'right' ? 24 : 23;
       const kneeIndex = leg === 'right' ? 26 : 25;
       const ankleIndex = leg === 'right' ? 28 : 27;
@@ -214,7 +216,7 @@ export function useSquatTracker(
         feedbackManager.setFeedback(newFeedback.trim());
       }
     },
-    [leg, feedbackManager, repTracker, workoutTimer, onRepComplete]
+    [leg, feedbackManager, repTracker, workoutTimer, onRepComplete, play]
   );
 
   /**
@@ -222,8 +224,13 @@ export function useSquatTracker(
    */
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
+  type PoseResults = {
+    image?: HTMLVideoElement | HTMLImageElement | ImageBitmap | HTMLCanvasElement | null;
+    poseLandmarks?: Landmark[] | undefined;
+  };
+
   const onPoseResults = useCallback(
-    (results: any) => {
+    (results: PoseResults) => {
       if (!canvasRef.current) return;
       const canvas = canvasRef.current;
 
@@ -238,8 +245,8 @@ export function useSquatTracker(
       const ctx = ctxRef.current;
       if (!ctx) return;
 
-      // Setup and clear canvas
-      setupCanvas(canvas, ctx, results.image);
+  // Setup and clear canvas
+  setupCanvas(canvas, ctx, results.image ?? null);
 
       // Draw pose
       if (results.poseLandmarks) {
@@ -275,6 +282,7 @@ export function useSquatTracker(
   const { startTracking, stopTracking } = useMediaPipe({
     videoRef,
     onPoseResults,
+    processingRef: isActiveRef,
   });
 
   // Reset function

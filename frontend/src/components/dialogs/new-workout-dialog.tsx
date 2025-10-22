@@ -34,12 +34,13 @@ export default function NewWorkoutDialog({ setRefreshToggle }: { setRefreshToggl
   // New workout modal state
   const [newName, setNewName] = useState("");
   const [draftExercises, setDraftExercises] = useState<Exercise[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
   const [openCreate, setOpenCreate] = useState(false);
-  const [selectedExercise, setSelectedExercise] = useState<string>(EXERCISES[0].id);
+  const [selectedExercise, setSelectedExercise] = useState<string>(EXERCISES[0].id ?? "");
   const [sets, setSets] = useState(3);
-  const [reps, setReps] = useState(12);
-  const [rest, setRest] = useState(45);
+  const [reps, setReps] = useState(10);
+  const [rest, setRest] = useState(15);
 
   function addDraftExercise() {
     const exerciseTemplate = EXERCISES.find(ex => ex.id === selectedExercise);
@@ -90,38 +91,48 @@ export default function NewWorkoutDialog({ setRefreshToggle }: { setRefreshToggl
     };
 
     try {
-      const workoutService = new WorkoutService();
-      // 1. Save workout plan
-      const planResult = await workoutService.createWorkoutPlan(newWorkout);
-      if (!planResult.success || !planResult.planId) {
-        toast.error("Failed to save workout: " + (planResult.error ?? "Unknown error"));
-        return;
-      }
-      // 2. Save exercises with plan id
-      // Map exercises to API format
-      const exercisesPayload = draftExercises.map((ex) => ({
-        name: ex.name,
-        sets: ex.sets,
-        reps: ex.reps,
-        rest_timer: ex.rest_timer,
-        order: ex.order,
-      }));
-      const exResult = await workoutService.addExercisesToPlan(planResult.planId, exercisesPayload);
-      if (!exResult.success) {
-        toast.error("Workout plan saved, but failed to add exercises: " + (exResult.error ?? "Unknown error"));
-        return;
-      }
-      toast.success("Workout and exercises saved successfully!");
-      // reset form
-      setNewName("");
-      setDraftExercises([]);
-      setOpenCreate(false);
-      setRefreshToggle((prev) => !prev);
+      setSubmitting(true);
+      await toast.promise(
+        new WorkoutService().createWorkoutPlan(newWorkout),
+        {
+          loading: "Saving workout...",
+          success: async ([success, planId, error]) => {
+            if (success && planId) {
+              // Save exercises with plan id
+              // Map exercises to API format
+              const exercisesPayload = draftExercises.map((ex) => ({
+                name: ex.name,
+                sets: ex.sets,
+                reps: ex.reps,
+                rest_timer: ex.rest_timer,
+                order: ex.order,
+              }));
+
+              const [success, message] = await new WorkoutService().addExercisesToPlan(planId, exercisesPayload);
+              if (!success) {
+                throw new Error("Workout plan saved, but failed to add exercises: " + (message ?? "Unknown error"));
+              }
+              // reset form
+              setNewName("");
+              setDraftExercises([]);
+              setOpenCreate(false);
+              setRefreshToggle((prev) => !prev);
+
+              return "Workout and exercises saved successfully!";
+            } else {
+              throw new Error(error || "Failed to save workout");
+            }
+          },
+          error: (err) => (err instanceof Error ? err.message : "Error saving workout"),
+        }
+      );
     } catch (error) {
       if (error instanceof Error) {
         toast.error(`Error saving workout: ${error.message}`);
         return;
       }
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -155,7 +166,7 @@ export default function NewWorkoutDialog({ setRefreshToggle }: { setRefreshToggl
                   </SelectTrigger>
                   <SelectContent>
                     {EXERCISES.map((ex) => (
-                      <SelectItem key={ex.id} value={ex.id}>{ex.name}</SelectItem>
+                      <SelectItem key={ex.id} value={ex.id ?? ""}>{ex.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -206,7 +217,7 @@ export default function NewWorkoutDialog({ setRefreshToggle }: { setRefreshToggl
         </div>
 
         <DialogFooter>
-          <Button onClick={saveNewWorkout}>Save Workout</Button>
+          <Button onClick={saveNewWorkout} disabled={submitting}>Save Workout</Button>
           <Button variant="outline" onClick={() => setOpenCreate(false)}>Cancel</Button>
         </DialogFooter>
       </DialogContent>

@@ -16,16 +16,22 @@ class CompleteOnboardingAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request):
-        # Ensure idempotent completion regardless of request payload
-        serializer = OnboardingCompletionSerializer(
-            instance=request.user,
-            data={"onboarding_completed": True},
-            partial=True,
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(
-            {"detail": "Onboarding marked as completed.",
-                "onboarding_completed": True},
-            status=status.HTTP_200_OK,
-        )
+        try:
+            # Ensure idempotent completion regardless of request payload
+            serializer = OnboardingCompletionSerializer(
+                instance=request.user,
+                data={"onboarding_completed": True},
+                partial=True,
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(
+                {"message": "Onboarding marked as completed.",
+                    "onboarding_completed": True},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )

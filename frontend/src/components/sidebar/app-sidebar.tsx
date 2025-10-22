@@ -29,12 +29,12 @@ const data = {
       icon: IconTreadmill,
       iconFilled: IconTreadmill,
     },
-    {
-      title: "Activity",
-      url: "/home/activity",
-      icon: IconActivity,
-      iconFilled: IconActivity,
-    },
+    // {
+    //   title: "Activity",
+    //   url: "/home/activity",
+    //   icon: IconActivity,
+    //   iconFilled: IconActivity,
+    // },
   ],
   platform: [
     {
@@ -59,14 +59,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavGroup label="Home" items={data.home} />
-        <NavGroup label="Platform" items={data.platform} />
-        <SidebarGroup className="mt-auto">
+        {/* <NavGroup label="Platform" items={data.platform} /> */}
+        {/* <SidebarGroup className="mt-auto">
           <SidebarMenu>
             <SidebarMenuItem>
               <SettingsDialog />
             </SidebarMenuItem>
           </SidebarMenu>
-        </SidebarGroup>
+        </SidebarGroup> */}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

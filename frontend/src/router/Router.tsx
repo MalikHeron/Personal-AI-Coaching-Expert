@@ -9,7 +9,6 @@ import OAuthCallback from '@/components/oauth-callback';
 import PageNotFound from '@/components/page-not-found';
 import SignUp from '@/pages/Signup';
 import { Onboarding } from '@/pages/Onboarding';
-import { useUser } from '@/hooks/use-user';
 
 /**
  * Main application router component.
@@ -26,33 +25,24 @@ const Router = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('clearSession') === 'true') {
-      sessionStorage.clear();
+      try { localStorage.removeItem('user'); } catch { /* ignore if storage unavailable */ }
+      try { sessionStorage.removeItem('user'); } catch { /* ignore if storage unavailable */ }
       window.location.replace('/');
     }
   }, []);
 
-  const Layout = ({ children, overlay = false, requiresUser = false }: { children: React.ReactNode, overlay?: boolean, requiresUser?: boolean }) => {
-    const { user, refreshUser } = useUser();
-    
-    useEffect(() => {
-      refreshUser();
-    }, [refreshUser]);
-
+  const Layout = ({ children, overlay = false }: { children: React.ReactNode, overlay?: boolean }) => {
     return (
       <>
-        {requiresUser && !user ? (
-          <PageNotFound />
-        ) : (
-          <div className='flex flex-col h-screen'>
-            {overlay ? (
-              <div className="-mt-16 pt-16 w-full">
-                {children}
-              </div>
-            ) : (
-              children
-            )}
-          </div>
-        )}
+        <div className='flex flex-col h-screen'>
+          {overlay ? (
+            <div className="-mt-16 pt-16 w-full">
+              {children}
+            </div>
+          ) : (
+            children
+          )}
+        </div>
       </>
     );
   };
@@ -67,7 +57,7 @@ const Router = () => {
           <Route path="/signup" element={<Layout><SignUp /></Layout>} />
           <Route path="/oauth/callback" element={<Layout><OAuthCallback /></Layout>} />
           <Route path="/demo" element={<Layout><WorkoutSession workouts={[]} /></Layout>} />
-          <Route path="/onboarding" element={<Layout requiresUser={true}><Onboarding /></Layout>} />
+          <Route path="/onboarding" element={<Layout><Onboarding /></Layout>} />
 
           {/* Private routes */}
           <Route path="/home/*" element={<Layout><Home /></Layout>} />

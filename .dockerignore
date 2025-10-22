@@ -15,9 +15,8 @@ env/
 .venv/
 
 # Django static & media (will be collected inside container instead)
-backend/staticfiles/
-backend/static_root/
-backend/media/
+# backend/staticfiles/
+# backend/media/
 
 # === Node / React ===
 frontend/node_modules/

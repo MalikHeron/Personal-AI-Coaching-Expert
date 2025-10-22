@@ -12,23 +12,32 @@ import { calculateAngle } from './geometry';
 export function setupCanvas(
   canvas: HTMLCanvasElement,
   ctx: CanvasRenderingContext2D,
-  image: any
+  image: HTMLVideoElement | HTMLImageElement | ImageBitmap | HTMLCanvasElement | null
 ): void {
+  // Only update canvas size when it actually differs to avoid forcing layout
   if (image && (image.width && image.height)) {
-    canvas.width = image.width;
-    canvas.height = image.height;
+    if (canvas.width !== image.width || canvas.height !== image.height) {
+      canvas.width = image.width;
+      canvas.height = image.height;
+    }
   }
 
-  ctx.save();
+  // Avoid repeated save/restore pairings that may be expensive; caller will
+  // pair setup/complete around each frame. Clear area efficiently.
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Enable high-quality image rendering
+  // Enable reasonable image smoothing; keep cost moderate
   ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
+  ctx.imageSmoothingQuality = 'medium';
 
-  // Draw the video frame
+  // Draw only the video frame here. Heavy landmark drawing is handled
+  // separately so callers can skip it when tracking is paused.
   if (image) {
-    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    try {
+      ctx.drawImage(image as HTMLVideoElement, 0, 0, canvas.width, canvas.height);
+    } catch {
+      // drawing may fail if video/canvas are not ready; swallow to avoid crash
+    }
   }
 }
 
@@ -38,34 +47,33 @@ export function setupCanvas(
 export function drawPoseLandmarks(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
-  landmarks: any[]
+  landmarks: Array<{ x: number; y: number }>
 ): void {
   // Draw connections
+  // Use mediapipe helpers for connectors/landmarks (kept minimal)
   drawConnectors(ctx, landmarks, POSE_CONNECTIONS, {
     color: '#6C63FF',
-    lineWidth: 2.2,
+    lineWidth: 1.6,
   });
 
-  // Draw landmark points
   drawLandmarks(ctx, landmarks, {
     color: '#43E97B',
     lineWidth: 0,
-    radius: 5,
+    radius: 4,
     fillColor: '#43E97B',
   });
 
-  // Draw glow effect
-  landmarks.forEach((lm) => {
-    ctx.save();
-    ctx.globalAlpha = 0.12;
+  // Lightweight glow effect (avoid expensive shadow ops per landmark)
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.fillStyle = '#43E97B';
+  for (let i = 0; i < landmarks.length; i++) {
+    const lm = landmarks[i];
     ctx.beginPath();
-    ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 10, 0, 2 * Math.PI);
-    ctx.fillStyle = '#43E97B';
-    ctx.shadowColor = '#43E97B';
-    ctx.shadowBlur = 4;
+    ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 8, 0, 2 * Math.PI);
     ctx.fill();
-    ctx.restore();
-  });
+  }
+  ctx.restore();
 }
 
 /**
@@ -74,7 +82,7 @@ export function drawPoseLandmarks(
 export function drawAngleBadge(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
-  landmarks: any[],
+  landmarks: Array<{ x: number; y: number }>,
   pointAIndex: number,
   pointBIndex: number,
   pointCIndex: number,

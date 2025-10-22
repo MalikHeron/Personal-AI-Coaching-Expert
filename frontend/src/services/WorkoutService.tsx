@@ -68,26 +68,17 @@ export class WorkoutService {
     });
 
     if (!response.ok) {
-      let errorMsg = "Failed to update profile";
       try {
         const err = await response.json();
-        if (err && typeof err === 'object') {
-          const firstField = Object.keys(err)[0];
-          if (firstField && Array.isArray(err[firstField]) && err[firstField].length > 0) {
-            errorMsg = err[firstField][0];
-          } else {
-            errorMsg = JSON.stringify(err);
-          }
-        }
-      } catch {
-        // Ignore JSON parsing errors
+        throw new Error(err.error || err.detail || "Failed to update profile");
+      } catch (error: unknown) {
+        return [false, (error as Error).message];
       }
-      return [false, errorMsg];
     }
     return [true, null];
   }
 
-  async createWorkoutPlan(data: any): Promise<{ success: boolean; planId?: number; error?: string }> {
+  async createWorkoutPlan(data: any): Promise<[boolean, number | undefined, string | undefined]> {
     const cookies = getCookie("csrftoken");
     const response = await fetch(`${API_URL}/pace/plans/`, {
       method: "POST",
@@ -114,14 +105,14 @@ export class WorkoutService {
       } catch {
         // Ignore JSON parsing errors
       }
-      return { success: false, error: errorMsg };
+      return [false, undefined, errorMsg];
     }
     const result = await response.json();
     // Expect result to contain id
-    return { success: true, planId: result.id };
+    return [true, result.id, undefined];
   }
 
-  async addExercisesToPlan(planId: number, exercises: any[]): Promise<{ success: boolean; error?: string }> {
+  async addExercisesToPlan(planId: number, exercises: any[]): Promise<[boolean, string]> {
     const cookies = getCookie("csrftoken");
     const response = await fetch(`${API_URL}/pace/plans/${planId}/exercises/`, {
       method: "POST",
@@ -147,8 +138,8 @@ export class WorkoutService {
       } catch {
         // Ignore JSON parsing errors
       }
-      return { success: false, error: errorMsg };
+      return [false, errorMsg];
     }
-    return { success: true };
+    return [true, ""];
   }
 }
