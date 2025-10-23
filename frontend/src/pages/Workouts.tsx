@@ -88,7 +88,7 @@ export default function Workouts() {
       }
     })
     // Navigate to workout page with workout data
-    navigate("/home/session", { state: { workouts: workoutData, workoutName: picked.name, workoutPlanId: picked.id, planExercises: picked.exercises } })
+    navigate("/home/workouts/session", { state: { workouts: workoutData, workoutName: picked.name, workoutPlanId: picked.id, planExercises: picked.exercises } })
   }
 
   useEffect(() => {

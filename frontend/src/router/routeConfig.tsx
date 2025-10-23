@@ -18,5 +18,5 @@ import WorkoutSession from "@/pages/WorkoutSession";
 export const routeConfig = [
   { path: '/dashboard', element: <Dashboard /> },
   { path: '/workouts', element: <Workouts /> },
-  { path: '/session', element: <WorkoutSession /> },
+  { path: '/workouts/session', element: <WorkoutSession /> },
 ];

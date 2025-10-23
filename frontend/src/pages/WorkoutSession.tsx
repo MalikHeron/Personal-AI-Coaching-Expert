@@ -75,6 +75,8 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
   const [started, setStarted] = useState(false);
   const [betweenSetTimer, setBetweenSetTimer] = useState(0);
   const [isBetweenSets, setIsBetweenSets] = useState(false);
+  const [isBetweenExercises, setIsBetweenExercises] = useState(false);
+  const [exerciseCooldownTimer, setExerciseCooldownTimer] = useState(0);
 
   // API-related state
   const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
@@ -87,9 +89,13 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
   // Refs to track current values for summary (avoid stale closure values)
   const trackedRepsRef = useRef(0);
   const overallAccuracyRef = useRef(0);
+  // Track per-exercise accuracy accumulators so we can compute an overall average
+  const perExerciseAccuracySumRef = useRef(0);
+  const perExerciseAccuracyCountRef = useRef(0);
   const totalRepsAccumulator = useRef(0); // Accumulate total reps across all sets
   const totalSetsAccumulator = useRef(0); // Accumulate total sets completed
   const exercisesCompletedSetRef = useRef<Set<number | string>>(new Set()); // track unique exercises completed
+  const [displayedOverallAccuracy, setDisplayedOverallAccuracy] = useState<number>(0);
 
   // Debug summaryOpen state changes
   useEffect(() => {
@@ -128,7 +134,6 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
     canvasRef,
     counter: trackedReps,
     feedback,
-    goodRepsInARow,
     avgRepSpeed,
     overallAccuracy,
     markWorkoutEnd,
@@ -138,7 +143,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
   } = useExerciseTracker(
     currentWorkout.name,
     videoRef,
-    isWorkoutActive && !isBetweenSets,
+    isWorkoutActive && !isBetweenSets && !isBetweenExercises,
     handleRepComplete,
     "right"
   );
@@ -148,10 +153,9 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
     [currentRep, currentWorkout.reps]
   );
 
-  const formScore = useMemo(() =>
-    trackedReps > 0 ? Math.round((goodRepsInARow / trackedReps) * 100) : 100,
-    [goodRepsInARow, trackedReps]
-  );
+  // Use the tracker's overallAccuracy which reflects total good reps / total reps
+  // rather than goodRepsInARow which resets on a bad rep.
+  const formScore = useMemo(() => Math.round(overallAccuracy), [overallAccuracy]);
 
   const tempoLabel = useMemo(() => {
     if (avgRepSpeed > 0) {
@@ -172,6 +176,15 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
   useEffect(() => {
     trackedRepsRef.current = trackedReps;
     overallAccuracyRef.current = overallAccuracy;
+    // Update displayed overall accuracy whenever the current exercise accuracy updates
+    // Compute average including current in-progress exercise (if any reps have been tracked)
+    const completedSum = perExerciseAccuracySumRef.current;
+    const completedCount = perExerciseAccuracyCountRef.current;
+    const includeCurrent = trackedReps > 0;
+    const totalSum = includeCurrent ? (completedSum + overallAccuracy) : completedSum;
+    const totalCount = includeCurrent ? (completedCount + 1) : completedCount;
+    const avg = totalCount > 0 ? Math.round(totalSum / totalCount) : overallAccuracy;
+    setDisplayedOverallAccuracy(avg);
   }, [trackedReps, overallAccuracy]);
 
   // Keep currentWorkoutRef in sync so callbacks can rely on latest workout
@@ -260,6 +273,28 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
     };
   }, [isBetweenSets]);
 
+  // Between-exercise timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout | undefined;
+    if (isBetweenExercises) {
+      interval = setInterval(() => {
+        setExerciseCooldownTimer((prev) => {
+          if (prev <= 1) {
+            // Timer reached 0, end the cooldown period
+            setIsBetweenExercises(false);
+            moveToNextWorkout();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBetweenExercises]);
+
   // Handlers
   async function handleRepComplete(repCount: number) {
     if (repCount === 0 && !started) {
@@ -287,8 +322,8 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
       const currentSetValue = currentSetRef.current;
       console.log("✓ SET COMPLETE! Current set:", currentSetValue, "Total sets:", currentWorkout.sets);
 
-  // Accumulate total reps and sets before resetting
-  totalRepsAccumulator.current += cw.reps;
+      // Accumulate total reps and sets before resetting
+      totalRepsAccumulator.current += cw.reps;
       totalSetsAccumulator.current += 1;
       console.log(`📊 ACCUMULATOR UPDATE - Total reps: ${totalRepsAccumulator.current}, Total sets: ${totalSetsAccumulator.current}`);
 
@@ -302,7 +337,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
 
       // Record a set log for backend (use current workout name to find exercise_id)
       try {
-  const matched = planExercises?.find((ex) => ex?.name === cw.name);
+        const matched = planExercises?.find((ex) => ex?.name === cw.name);
         // Record exercise as completed (use id if available, otherwise name)
         if (matched?.id) {
           exercisesCompletedSetRef.current.add(matched.id);
@@ -328,10 +363,21 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
       console.log('SET COMPLETION CHECK', { currentSetValue, totalSets: cw.sets });
       if (currentSetValue >= cw.sets) {
         console.log("✓✓✓ ALL SETS DONE! Moving to next workout.");
+        // Capture per-exercise accuracy at the end of this exercise so we can average across exercises
+        try {
+          const exerciseAccuracy = overallAccuracyRef.current || 0;
+          perExerciseAccuracySumRef.current += exerciseAccuracy;
+          perExerciseAccuracyCountRef.current += 1;
+          // update displayed overall accuracy immediately
+          const avgNow = Math.round(perExerciseAccuracySumRef.current / perExerciseAccuracyCountRef.current);
+          setDisplayedOverallAccuracy(avgNow);
+          console.log(`📈 Exercise complete - captured accuracy: ${exerciseAccuracy}%. New avg: ${avgNow}% (count: ${perExerciseAccuracyCountRef.current})`);
+        } catch (e) {
+          console.warn('Failed to capture per-exercise accuracy', e);
+        }
         markWorkoutEnd();
-        setTimeout(() => {
-          moveToNextWorkout();
-        }, 1000);
+        setIsBetweenExercises(true);
+        setExerciseCooldownTimer(cw.restTimer || 30);
       } else {
         // Move to next set
         const nextSet = currentSetValue + 1;
@@ -368,7 +414,11 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
 
     setSummaryTotalReps(currentReps);
     setSummarySetsCompleted(currentSets);
-    setSummaryFormScore(currentAccuracy);
+    // Use averaged per-exercise accuracy if available, otherwise fallback to the overallAccuracyRef
+    const averagedAccuracy = perExerciseAccuracyCountRef.current > 0
+      ? Math.round(perExerciseAccuracySumRef.current / perExerciseAccuracyCountRef.current)
+      : currentAccuracy;
+    setSummaryFormScore(averagedAccuracy);
 
     // Calculate duration using the ACTUAL workout timer
     // workoutDuration tracks when workout is active, accumulatedElapsed tracks paused time
@@ -410,11 +460,11 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
         const ss = String(totalSeconds % 60).padStart(2, '0');
         const durationStr = `${hh}:${mm}:${ss}`;
 
-        console.log(`📊 Sending to backend - Duration: ${durationStr}, Score: ${currentAccuracy}%`);
+        console.log(`📊 Sending to backend - Duration: ${durationStr}, Score: ${averagedAccuracy}%`);
 
         await SessionService.patchSession(sessionIdToUse as number, {
           duration: durationStr,
-          score: currentAccuracy,
+          score: averagedAccuracy,
           completed: true,
         });
         console.log("✓ Workout session updated in backend");
@@ -422,7 +472,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
         // Show summary dialog (log the captured values directly)
         console.log("🎉 Opening summary dialog with stats:", {
           reps: currentReps,
-          formScore: currentAccuracy,
+          formScore: averagedAccuracy,
           sets: logsToSend.length
         });
       } catch (error) {
@@ -455,6 +505,10 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
         canvasRef.current.height = 0;
       }
     }, 1000);
+    // Reset per-exercise accuracy accumulators so next session starts fresh
+    perExerciseAccuracySumRef.current = 0;
+    perExerciseAccuracyCountRef.current = 0;
+    setDisplayedOverallAccuracy(0);
   }, [stopTracking, markWorkoutEnd, stopCamera, canvasRef]);
 
   const moveToNextWorkout = useCallback(() => {
@@ -566,7 +620,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
         open={summaryOpen}
         onClose={() => {
           setSummaryOpen(false);
-          if (window.location.pathname === '/home/session') {
+          if (window.location.pathname === '/home/workouts/session') {
             navigate('/home/dashboard');
           } else {
             navigate('/');
@@ -579,8 +633,8 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
         setsCompleted={summarySetsCompleted}
         exercisesCompleted={summaryExercisesCompleted}
       />
-      <div className={`flex items-center ${window.location.pathname !== '/home/session' ? 'justify-between' : 'justify-end'}`}>
-        {window.location.pathname !== '/home/session' &&
+      <div className={`flex items-center ${window.location.pathname !== '/home/workouts/session' ? 'justify-between' : 'justify-end'}`}>
+        {window.location.pathname !== '/home/workouts/session' &&
           <Button variant='outline' className="cursor-pointer" onClick={() => navigate('/')}>
             <ChevronLeftIcon />
             Back to Home
@@ -741,7 +795,7 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
               </div>
               <div className="flex justify-between text-sm ">
                 <span>Overall Accuracy</span>
-                <span className="font-medium text-muted-foreground">{overallAccuracy}%</span>
+                <span className="font-medium text-muted-foreground">{displayedOverallAccuracy}%</span>
               </div>
               <div className="flex justify-between text-sm ">
                 <span>Difficulty</span>
@@ -771,6 +825,31 @@ export default function WorkoutSession({ workouts: defaultWorkouts = [] }: { wor
                     </span>
                   </div>
                   <div className="text-muted-foreground dark:text-zinc-200 font-medium mt-2">Take a breather, hydrate, and get ready!</div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {isBetweenExercises && (
+            <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-black/80 to-purple-900/80 z-50">
+              <Card className="animate-fade-in">
+                <CardHeader>
+                  <CardTitle className="text-lg">Next exercise starts in</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col space-y-4 items-center">
+                  <div className="relative flex items-center justify-center">
+                    <AnimatedCircularProgressBar
+                      className="size-24"
+                      value={((currentWorkout.restTimer || 30) - exerciseCooldownTimer) / (currentWorkout.restTimer || 30) * 100}
+                      showValue={false}
+                      gaugePrimaryColor="rgb(59 130 246)"
+                      gaugeSecondaryColor="rgba(0, 0, 0, 0.1)"
+                    />
+                    <span className="absolute text-3xl font-bold">
+                      {exerciseCooldownTimer}
+                    </span>
+                  </div>
+                  <div className="text-muted-foreground dark:text-zinc-200 font-medium mt-2">Catch your breath, re-rack, and prepare for the next exercise.</div>
                 </CardContent>
               </Card>
             </div>

@@ -85,12 +85,16 @@ export function Onboarding() {
       await toast.promise(new WorkoutService().updateProfile(data),
         {
           loading: "Updating profile...",
-          success: ([success, message]) => {
+          success: async ([success, message]) => {
             if (success) {
               navigate('/home');
-              return "Onboarding completed successfully!";
-            } else {
-              throw new Error("Failed to complete onboarding: " + (message ?? "Unknown error"));
+              
+              const success = await new AuthService().markAsCompleted();
+              if (success) {
+                return "Onboarding completed successfully!";
+              } else {
+                throw new Error("Failed to complete onboarding: " + (message ?? "Unknown error"));
+              }
             }
           },
           error: (err) => (err instanceof Error ? err.message : "Failed to update profile"),

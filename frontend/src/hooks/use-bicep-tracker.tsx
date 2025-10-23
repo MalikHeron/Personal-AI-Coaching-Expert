@@ -46,6 +46,13 @@ export function useBicepCurlTracker(
   // Track current rep start time for accurate duration calculation
   const currentRepStartTime = useRef<number | null>(null);
 
+  // Small smoothing + hysteresis to avoid jitter around thresholds
+  const smoothedAngleRef = useRef<number | null>(null);
+  const downFramesRef = useRef(0);
+  const upFramesRef = useRef(0);
+  const CONSECUTIVE_FRAMES = 3; // require 3 consecutive frames to flip state
+  const SMOOTHING_ALPHA = 0.3; // exponential smoothing weight for new angle
+
   // Utilities
   const feedbackManager = useFeedbackThrottle(setFeedback);
   const repTracker = useRepTracker();
@@ -60,9 +67,20 @@ export function useBicepCurlTracker(
   type Landmark = { x: number; y: number; z?: number; visibility?: number };
   const processBicepCurl = useCallback(
     (landmarks: Landmark[]) => {
+      // Defensive: ensure landmark array exists and has content
+      if (!landmarks || !Array.isArray(landmarks) || landmarks.length === 0) return;
+
       const shoulderIndex = arm === 'right' ? 12 : 11;
       const elbowIndex = arm === 'right' ? 14 : 13;
       const wristIndex = arm === 'right' ? 16 : 15;
+
+      if (arm === 'both') {
+        // Hook is intended to track a single arm. Default to right if 'both' passed.
+        // This avoids unexpected index selection and miscalculations.
+        // If you want both-arms tracking, use two instances of the hook or implement
+        // separate handling here.
+        console.warn("useBicepCurlTracker: 'both' arm mode currently defaults to 'right'. Use two trackers for both arms.");
+      }
 
       // Check visibility with lower threshold (0.5 instead of 0.8)
       const isVisible = checkLandmarkVisibility(landmarks, [shoulderIndex, elbowIndex, wristIndex], 0.5);
@@ -84,32 +102,54 @@ export function useBicepCurlTracker(
         visibilityFailCount.current = 0;
       }
 
-      // Get landmarks
+      // Get landmarks and guard against missing values
       const shoulder = landmarks[shoulderIndex];
       const elbow = landmarks[elbowIndex];
       const wrist = landmarks[wristIndex];
+      if (!shoulder || !elbow || !wrist) return;
+      if (typeof shoulder.x !== 'number' || typeof shoulder.y !== 'number') return;
+      if (typeof elbow.x !== 'number' || typeof elbow.y !== 'number') return;
+      if (typeof wrist.x !== 'number' || typeof wrist.y !== 'number') return;
 
-      // Calculate angle
-      const angle = calculateAngle(
+      // Calculate raw angle and guard against invalid results
+      const rawAngle = calculateAngle(
         { x: shoulder.x, y: shoulder.y },
         { x: elbow.x, y: elbow.y },
         { x: wrist.x, y: wrist.y }
       );
+      if (!isFinite(rawAngle)) return;
 
-      setCurrentAngle(Math.round(angle));
+      // Exponential smoothing to reduce jitter around thresholds
+      const prev = smoothedAngleRef.current;
+      const smoothed = prev == null ? rawAngle : SMOOTHING_ALPHA * rawAngle + (1 - SMOOTHING_ALPHA) * prev;
+      smoothedAngleRef.current = smoothed;
+      setCurrentAngle(Math.round(smoothed));
 
       // Form checks with debouncing
       let newFeedback = '';
-      const shoulderToElbowDistance = Math.abs(elbow.y - shoulder.y);
-      const elbowToWristDistance = Math.abs(wrist.y - elbow.y);
+      // Use Euclidean distances and make checks scale-invariant by normalizing
+      // to the full arm length (shoulder -> wrist). MediaPipe landmarks are
+      // normalized to the image, so these ratios work across different camera
+      // distances and resolutions.
+      const armLength = Math.hypot(wrist.x - shoulder.x, wrist.y - shoulder.y);
+      const shoulderToElbowDistance = Math.hypot(elbow.x - shoulder.x, elbow.y - shoulder.y);
+      const elbowToWristDistance = Math.hypot(wrist.x - elbow.x, wrist.y - elbow.y);
+
+      // If armLength is extremely small (bad detection), bail out to avoid div-by-zero
+      if (armLength < 1e-6) return;
+
+      const relShoulderToElbow = shoulderToElbowDistance / armLength; // ratio
+      const relElbowToWrist = elbowToWristDistance / armLength; // ratio
       const now = Date.now();
 
       // Check elbow extension (only warn if consistently bad)
-      if (shoulderToElbowDistance > 0.25) {
+      // Use scale-invariant thresholds (tuned conservatively)
+      // If the elbow is relatively far from the shoulder (large relShoulderToElbow)
+      // it may indicate overextension.
+      if (relShoulderToElbow > 0.6) {
         elbowExtensionFailCount.current += 1;
 
-        // Only warn after 45 consecutive failures (~1.5 seconds at 30fps)
-        // AND only if we haven't warned in the last 8 seconds
+        // Only warn after consecutive failures and debounce warnings
         if (elbowExtensionFailCount.current > 45 && now - lastElbowWarning.current > 8000) {
           newFeedback += 'Avoid overextending your elbow! ';
           play('elbow_extension');
@@ -120,11 +160,11 @@ export function useBicepCurlTracker(
       }
 
       // Check range of motion (only warn if consistently bad)
-      if (elbowToWristDistance < 0.08) {
+      // If the elbow-to-wrist distance is very small relative to arm length,
+      // it likely indicates an incomplete curl (poor range of motion).
+      if (relElbowToWrist < 0.15) {
         rangeOfMotionFailCount.current += 1;
 
-        // Only warn after 45 consecutive failures (~1.5 seconds at 30fps)
-        // AND only if we haven't warned in the last 8 seconds
         if (rangeOfMotionFailCount.current > 45 && now - lastRangeWarning.current > 8000) {
           newFeedback += 'Ensure a full range of motion! ';
           play('full_range_motion');
@@ -135,19 +175,34 @@ export function useBicepCurlTracker(
       }
 
       // Rep counting logic
-      if (angle > 165) {
-        // Arm extended (down position)
-        if (stageRef.current !== 'down') {
-          stageRef.current = 'down';
-          currentRepStartTime.current = Date.now(); // Track start time here
-          repTracker.startRep();
+      // Use smoothed angle for stage transitions and require a few consecutive
+      // frames to reduce false positives from jitter.
+      if (smoothed > 165) {
+        downFramesRef.current += 1;
+      } else {
+        downFramesRef.current = 0;
+      }
 
-          // Start workout timer on first rep
-          if (repTracker.counter === 0) {
-            workoutTimer.start();
-          }
+      if (smoothed < 35) {
+        upFramesRef.current += 1;
+      } else {
+        upFramesRef.current = 0;
+      }
+
+      // Arm extended (down position)
+      if (downFramesRef.current >= CONSECUTIVE_FRAMES && stageRef.current !== 'down') {
+        stageRef.current = 'down';
+        currentRepStartTime.current = Date.now(); // Track start time here
+        repTracker.startRep();
+
+        // Start workout timer on first rep
+        if (repTracker.counter === 0) {
+          workoutTimer.start();
         }
-      } else if (angle < 35 && stageRef.current === 'down') {
+      }
+
+      // Arm curled (up position) - rep complete when we have enough consecutive up frames
+      else if (upFramesRef.current >= CONSECUTIVE_FRAMES && stageRef.current === 'down') {
         // Arm curled (up position) - rep complete!
 
         // Calculate CURRENT rep duration accurately
@@ -217,8 +272,8 @@ export function useBicepCurlTracker(
       const ctx = ctxRef.current;
       if (!ctx) return;
 
-  // Setup and clear canvas (results.image may be undefined for some buffers)
-  setupCanvas(canvas, ctx, results.image ?? null);
+      // Setup and clear canvas (results.image may be undefined for some buffers)
+      setupCanvas(canvas, ctx, results.image ?? null);
 
       // Draw pose landmarks only when necessary. During rest or when
       // tracking is paused, keep drawing minimal (just the video frame)

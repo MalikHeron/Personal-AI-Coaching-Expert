@@ -20,5 +20,5 @@ class CustomUser(AbstractUser):
         verbose_name='user permissions',
     )
 
-    def __str__(self):
-        return self.email
+    def __str__(self) -> str:
+        return str(self.email)

@@ -11,6 +11,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useScrollPosition } from "@/hooks/use-scroll-position";
 import { useActiveSection } from "@/hooks/use-active-section";
 import { useNavigate } from "react-router-dom";
+import { useUser } from "@/hooks/use-user";
 
 function NavLinks({ onClick, activeId }: { onClick: (id: string) => void; activeId: string }) {
   const links = ["features", "product", "about", "contact"];
@@ -42,6 +43,7 @@ export default function Navbar() {
   const navigate = useNavigate();
   const scrollY = useScrollPosition();
   const activeId = useActiveSection(["features", "product", "about", "contact"]);
+  const { user } = useUser();
 
   const handleScrollTo = (id: string) => {
     const el = document.getElementById(id);
@@ -73,12 +75,18 @@ export default function Navbar() {
             <NavLinks onClick={handleScrollTo} activeId={activeId} />
           </div>
           <div className='flex gap-2 items-center'>
-            <Button variant='ghost' size='sm' onClick={() => navigate('/login')} className='cursor-pointer px-2 text-muted-foreground transition'>Log in</Button>
-            <ShimmerButton className="shadow-2xl p-2" onClick={() => navigate('/signup')}>
-              <span className="text-center text-sm leading-none font-medium tracking-tight whitespace-pre-wrap text-white dark:from-white dark:to-slate-500/10">
-                Sign up
-              </span>
-            </ShimmerButton>
+            {!user ? (
+              <>
+                <Button variant='ghost' size='sm' onClick={() => navigate('/login')} className='cursor-pointer px-2 text-muted-foreground transition'>Log in</Button>
+                <ShimmerButton className="shadow-2xl p-2" onClick={() => navigate('/signup')}>
+                  <span className="text-center text-sm leading-none font-medium tracking-tight whitespace-pre-wrap text-white dark:from-white dark:to-slate-500/10">
+                    Sign up
+                  </span>
+                </ShimmerButton>
+              </>
+            ) : (
+              <Button variant='ghost' size='sm' onClick={() => navigate('/home')} className='cursor-pointer px-2 text-muted-foreground transition'>Dashboard</Button>
+            )}
             <AnimatedThemeToggler />
           </div>
         </>
@@ -87,11 +95,15 @@ export default function Navbar() {
       {/* Mobile Menu Toggle */}
       {isMobile && (
         <div className='flex gap-4 items-center justify-end'>
-          <ShimmerButton className="shadow-2xl p-2" onClick={() => navigate('/signup')}>
-            <span className="text-center text-md leading-none font-medium tracking-tight whitespace-pre-wrap text-white dark:from-white dark:to-slate-500/10">
-              Sign up
-            </span>
-          </ShimmerButton>
+          {!user ? (
+            <ShimmerButton className="shadow-2xl p-2" onClick={() => navigate('/signup')}>
+              <span className="text-center text-md leading-none font-medium tracking-tight whitespace-pre-wrap text-white dark:from-white dark:to-slate-500/10">
+                Sign up
+              </span>
+            </ShimmerButton>
+          ) : (
+            <Button variant='ghost' size='sm' onClick={() => navigate('/home')} className='cursor-pointer px-2 text-muted-foreground transition'>Dashboard</Button>
+          )}
           <button
             aria-label={open ? "Close menu" : "Open menu"}
             onClick={() => {

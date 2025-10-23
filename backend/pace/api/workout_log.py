@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Avg, Sum, Count
 from pace.models import WorkoutSession, ExerciseSetLog, WorkoutPlan, Exercise
+from django.db import IntegrityError
 from pace.serializers import WorkoutSessionSerializer, ExerciseSetLogSerializer
 from django.utils import timezone
 
@@ -106,7 +107,9 @@ class ExerciseSetLogListCreateAPIView(APIView):
         if not session.plan:
             return Response({"detail": "This session has no associated plan."}, status=status.HTTP_400_BAD_REQUEST)
 
-        plan_exercise_ids = session.plan.exercises.values_list("id", flat=True)
+        # WorkoutPlan may not expose a related manager in all contexts; query Exercise
+        # directly for exercises belonging to the plan to be robust.
+        plan_exercise_ids = Exercise.objects.filter(workout_plan=session.plan).values_list("id", flat=True)
         data = request.data.get("sets", [])
 
         if not data:
@@ -115,21 +118,45 @@ class ExerciseSetLogListCreateAPIView(APIView):
         created_logs = []
         for item in data:
             exercise_id = item.get("exercise_id")
-            if exercise_id not in plan_exercise_ids:
+            # Normalize to int when possible (incoming payloads may be strings)
+            try:
+                exercise_id_int = int(exercise_id)
+            except (TypeError, ValueError):
+                return Response({"detail": f"Invalid exercise_id: {exercise_id}"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if exercise_id_int not in plan_exercise_ids:
                 return Response(
                     {"detail": f"Exercise {exercise_id} is not part of the plan '{session.plan.name}'."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            log = ExerciseSetLog.objects.create(
-                session=session,
-                exercise_id=exercise_id,
-                set_number=item.get("set_number"),
-                reps_completed=item.get("reps_completed"),
-                weight_kg=item.get("weight_kg"),
-                duration_seconds=item.get("duration_seconds"),
-                score=item.get("score"),
-            )
+            set_number = item.get("set_number")
+            defaults = {
+                'reps_completed': item.get("reps_completed"),
+                'weight_kg': item.get("weight_kg"),
+                'duration_seconds': item.get("duration_seconds"),
+                'score': item.get("score"),
+            }
+
+            # Use update_or_create to avoid UniqueViolation on duplicate (session, exercise, set_number)
+            try:
+                log, created = ExerciseSetLog.objects.update_or_create(
+                    session=session,
+                    exercise_id=exercise_id_int,
+                    set_number=set_number,
+                    defaults=defaults
+                )
+            except IntegrityError:
+                # In case of a rare race condition, try to fetch existing log and update it
+                try:
+                    log = ExerciseSetLog.objects.get(session=session, exercise_id=exercise_id_int, set_number=set_number)
+                    for k, v in defaults.items():
+                        setattr(log, k, v)
+                    log.save()
+                except ExerciseSetLog.DoesNotExist:
+                    # If still failing, return a 409 to indicate conflict
+                    return Response({"detail": "Conflict creating set log. Please retry."}, status=status.HTTP_409_CONFLICT)
+
             created_logs.append(log)
 
         serializer = ExerciseSetLogSerializer(created_logs, many=True)

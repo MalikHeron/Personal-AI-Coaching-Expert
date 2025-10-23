@@ -9,6 +9,7 @@ import OAuthCallback from '@/components/oauth-callback';
 import PageNotFound from '@/components/page-not-found';
 import SignUp from '@/pages/Signup';
 import { Onboarding } from '@/pages/Onboarding';
+import { useUser } from '@/hooks/use-user';
 
 /**
  * Main application router component.
@@ -32,6 +33,12 @@ const Router = () => {
   }, []);
 
   const Layout = ({ children, overlay = false }: { children: React.ReactNode, overlay?: boolean }) => {
+    const {refreshUser} = useUser();
+
+    useEffect(() => {
+      refreshUser();
+    }, [refreshUser]);
+    
     return (
       <>
         <div className='flex flex-col h-screen'>
